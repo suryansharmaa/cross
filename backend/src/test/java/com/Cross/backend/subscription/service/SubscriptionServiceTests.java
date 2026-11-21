@@ -7,6 +7,8 @@ import com.Cross.backend.subscription.repository.SubscriptionRepository;
 import com.Cross.backend.user.entity.User;
 import com.Cross.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.*;
@@ -72,12 +74,43 @@ class SubscriptionServiceTests {
         var first = service.cancel(ownerId, id);
         assertThat(first.status()).isEqualTo(SubscriptionStatus.CANCELLED);
         assertThat(first.cancelledAt()).isEqualTo(now).isEqualTo(first.updatedAt());
+        assertThat(first.nextBillingDate()).isNull();
         assertThat(service.cancel(ownerId, id)).isEqualTo(first);
+        assertThat(service.get(ownerId, id).nextBillingDate()).isNull();
         assertThatThrownBy(() -> service.update(ownerId, id, update(start)))
                 .isInstanceOf(SubscriptionCancelledException.class);
         verify(rows).flush();
         service.delete(ownerId, id);
         verify(rows).delete(row);
+    }
+
+    @Test
+    void usesTheFutureStartDateForANonTrial() {
+        LocalDate future = start.plusDays(2);
+        stubMonthlySubscription(future, null);
+        assertThat(service.get(ownerId, id).nextBillingDate()).isEqualTo(future);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2024-03-02, 2024-03-02",
+            "2024-02-29, 2024-02-29",
+            "2000-01-30, 2024-02-29"
+    })
+    void anchorsTrialBillingOnItsEndDate(LocalDate trialEnd, LocalDate expected) {
+        stubMonthlySubscription(LocalDate.of(2000, 1, 15), trialEnd);
+        assertThat(service.get(ownerId, id).nextBillingDate()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2024-02-28T18:29:59Z, 2024-02-28",
+            "2024-02-28T18:30:00Z, 2024-03-28"
+    })
+    void usesKolkataMidnightEvenWhenTheClockIsInUtc(Instant instant, LocalDate expected) {
+        stubMonthlySubscription(LocalDate.of(2024, 1, 28), null);
+        var boundaryService = new SubscriptionService(rows, users, Clock.fixed(instant, ZoneOffset.UTC));
+        assertThat(boundaryService.get(ownerId, id).nextBillingDate()).isEqualTo(expected);
     }
 
     @Test
@@ -128,6 +161,13 @@ class SubscriptionServiceTests {
         assertThat(updated.status()).isEqualTo(SubscriptionStatus.ACTIVE);
         service.delete(ownerId, id);
         verify(rows).delete(row);
+    }
+
+    private void stubMonthlySubscription(LocalDate startDate, LocalDate trialEnd) {
+        var row = new Subscription(owner, now);
+        row.update("Music", SubscriptionCategory.MUSIC, BigDecimal.ONE, BillingCycle.MONTHLY,
+                startDate, trialEnd != null, trialEnd, null, now);
+        when(rows.findByIdAndUser_Id(id, ownerId)).thenReturn(Optional.of(row));
     }
 
     private CreateSubscriptionRequest create(LocalDate date) {

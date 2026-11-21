@@ -2,10 +2,14 @@ package com.Cross.backend;
 
 import com.Cross.backend.subscription.repository.SubscriptionRepository;
 import com.Cross.backend.user.repository.UserRepository;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,11 +17,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -38,6 +45,14 @@ class SubscriptionIntegrationTests {
     @Autowired SubscriptionRepository subscriptions;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+    @MockitoBean Clock clock;
+
+    @BeforeEach
+    void setUpClock() {
+        when(clock.instant()).thenReturn(Instant.parse("2024-02-01T18:29:59Z"));
+        when(clock.withZone(any(ZoneId.class)))
+                .thenAnswer(call -> Clock.fixed(clock.instant(), call.getArgument(0)));
+    }
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry properties) {
@@ -51,14 +66,18 @@ class SubscriptionIntegrationTests {
         String owner = register("subscription-owner@example.com");
         String other = register("subscription-other@example.com");
         var ownerId = users.findByEmail("subscription-owner@example.com").orElseThrow().getId();
-        String path = create(owner);
+        var created = mvc.perform(post(PATH).header("Authorization", owner).contentType("application/json")
+                .content(BODY)).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-02-01")).andReturn().getResponse();
+        String path = created.getHeader("Location");
         create(owner);
         create(other);
         mvc.perform(get(PATH).header("Authorization", other)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1));
         mvc.perform(get(PATH + "?size=1&status=ACTIVE").header("Authorization", owner))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.totalPages").value(2));
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.items[0].nextBillingDate").value("2024-02-01"));
         String missing = PATH + "/" + UUID.randomUUID();
         for (String method : List.of("GET", "PUT", "POST", "DELETE")) {
             String expectedDetail = null;
@@ -74,18 +93,29 @@ class SubscriptionIntegrationTests {
             }
         }
         mvc.perform(get(path).header("Authorization", owner)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Music"));
+                .andExpect(jsonPath("$.name").value("Music"))
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-02-01"));
+        when(clock.instant()).thenReturn(Instant.parse("2024-02-01T18:30:00Z"));
+        mvc.perform(get(path).header("Authorization", owner)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-03-01"))
+                .andExpect(jsonPath("$.updatedAt").value(json.readTree(created.getContentAsString())
+                        .get("updatedAt").asString()));
         mvc.perform(put(path).header("Authorization", owner).contentType("application/json")
-                .content(BODY.replace(" Music ", "Updated"))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated"));
+                .content(BODY.replace(" Music ", "Updated").replace("2024-01-01", "2024-01-02")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated"))
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-02-02"));
         String cancelled = mvc.perform(post(path + "/cancel").header("Authorization", owner))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.nextBillingDate").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.cancelledAt").isNotEmpty()).andReturn().getResponse().getContentAsString();
         mvc.perform(post(path + "/cancel").header("Authorization", owner)).andExpect(content().json(cancelled));
         mvc.perform(put(path).header("Authorization", owner).contentType("application/json").content(BODY))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("subscription_cancelled"));
         mvc.perform(get(PATH + "?status=CANCELLED").header("Authorization", owner))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].nextBillingDate").value(org.hamcrest.Matchers.nullValue()));
+        mvc.perform(get(path).header("Authorization", owner)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextBillingDate").value(org.hamcrest.Matchers.nullValue()));
         mvc.perform(delete(create(owner)).header("Authorization", owner)).andExpect(status().isNoContent());
         mvc.perform(delete("/api/v1/users/me").header("Authorization", owner)).andExpect(status().isNoContent());
         assertThat(subscriptions.countByUser_Id(ownerId)).isZero();
