@@ -38,3 +38,4 @@ A task is done only when: the code follows the layering rules, new behavior has 
 
 ## Commits
 Short, specific subjects (for example `Add JWT register and login`). One feature per commit.
+
