@@ -147,13 +147,16 @@ class SubscriptionControllerTests {
         var response = new SubscriptionResponse(id, "x".repeat(100), SubscriptionCategory.MUSIC,
                 new java.math.BigDecimal("9999999.99"), BillingCycle.MONTHLY,
                 java.time.LocalDate.parse("2024-01-01"), true, java.time.LocalDate.parse("2024-01-01"),
-                SubscriptionStatus.ACTIVE, "x".repeat(500), java.time.Instant.EPOCH, java.time.Instant.EPOCH, null);
+                SubscriptionStatus.ACTIVE, "x".repeat(500), java.time.Instant.EPOCH, java.time.Instant.EPOCH, null,
+                java.time.LocalDate.parse("2024-01-01"));
         when(subscriptions.create(eq(owner), any())).thenReturn(response);
         when(subscriptions.update(eq(owner), eq(id), any())).thenReturn(response);
         String payload = json.writeValueAsString(body);
         mvc.perform(auth(post(PATH)).contentType("application/json").content(payload))
-                .andExpect(status().isCreated()).andExpect(header().string("Location", item));
-        mvc.perform(auth(put(item)).contentType("application/json").content(payload)).andExpect(status().isOk());
+                .andExpect(status().isCreated()).andExpect(header().string("Location", item))
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-01-01"));
+        mvc.perform(auth(put(item)).contentType("application/json").content(payload)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextBillingDate").value("2024-01-01"));
         verify(subscriptions).create(eq(owner), argThat(request -> request.name().equals("x".repeat(100))));
         verify(subscriptions).update(eq(owner), eq(id), argThat(request -> request.name().equals("x".repeat(100))));
     }

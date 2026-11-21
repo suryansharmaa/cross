@@ -33,14 +33,15 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse create(UUID ownerId, CreateSubscriptionRequest request) {
-        validateStartDate(request.startDate());
+        LocalDate today = today();
+        validateStartDate(request.startDate(), today);
         var owner = users.findForSubscriptionCreate(ownerId).orElseThrow(InvalidCredentialsException::new);
         if (subscriptions.countByUser_Id(ownerId) >= LIMIT) throw new SubscriptionLimitExceededException();
         Instant now = now();
         var subscription = new Subscription(owner, now);
         subscription.update(request.name(), request.category(), request.amount(), request.billingCycle(),
                 request.startDate(), request.isTrial(), request.trialEndDate(), request.notes(), now);
-        return SubscriptionResponse.from(subscriptions.saveAndFlush(subscription));
+        return toResponse(subscriptions.saveAndFlush(subscription), today);
     }
 
     public SubscriptionPageResponse list(UUID ownerId, SubscriptionStatus status, Pageable page) {
@@ -49,23 +50,26 @@ public class SubscriptionService {
                     : subscriptions.countByUser_IdAndStatus(ownerId, status);
             return SubscriptionPageResponse.from(new PageImpl<>(List.of(), page, count));
         }
-        return SubscriptionPageResponse.from(status == null ? subscriptions.findByUser_Id(ownerId, page)
-                : subscriptions.findByUser_IdAndStatus(ownerId, status, page));
+        LocalDate today = today();
+        var results = status == null ? subscriptions.findByUser_Id(ownerId, page)
+                : subscriptions.findByUser_IdAndStatus(ownerId, status, page);
+        return SubscriptionPageResponse.from(results.map(subscription -> toResponse(subscription, today)));
     }
 
     public SubscriptionResponse get(UUID ownerId, UUID id) {
-        return SubscriptionResponse.from(findOwned(ownerId, id));
+        return toResponse(findOwned(ownerId, id), today());
     }
 
     @Transactional
     public SubscriptionResponse update(UUID ownerId, UUID id, UpdateSubscriptionRequest request) {
         var subscription = findOwned(ownerId, id);
         if (subscription.getStatus() == SubscriptionStatus.CANCELLED) throw new SubscriptionCancelledException();
-        validateStartDate(request.startDate());
+        LocalDate today = today();
+        validateStartDate(request.startDate(), today);
         subscription.update(request.name(), request.category(), request.amount(), request.billingCycle(),
                 request.startDate(), request.isTrial(), request.trialEndDate(), request.notes(), now());
         subscriptions.flush();
-        return SubscriptionResponse.from(subscription);
+        return toResponse(subscription, today);
     }
 
     @Transactional
@@ -75,7 +79,7 @@ public class SubscriptionService {
             subscription.cancel(now());
             subscriptions.flush();
         }
-        return SubscriptionResponse.from(subscription);
+        return toResponse(subscription, today());
     }
 
     @Transactional
@@ -88,11 +92,23 @@ public class SubscriptionService {
         return subscriptions.findByIdAndUser_Id(id, ownerId).orElseThrow(SubscriptionNotFoundException::new);
     }
 
-    private void validateStartDate(LocalDate startDate) {
-        if (startDate.isBefore(MIN_START_DATE)
-                || startDate.isAfter(LocalDate.now(clock.withZone(BUSINESS_ZONE)).plusYears(5))) {
+    private SubscriptionResponse toResponse(Subscription subscription, LocalDate today) {
+        LocalDate nextBillingDate = null;
+        if (subscription.getStatus() != SubscriptionStatus.CANCELLED) {
+            LocalDate anchor = subscription.isTrial() ? subscription.getTrialEndDate() : subscription.getStartDate();
+            nextBillingDate = BillingDateCalculator.nextBillingDate(anchor, subscription.getBillingCycle(), today);
+        }
+        return SubscriptionResponse.from(subscription, nextBillingDate);
+    }
+
+    private void validateStartDate(LocalDate startDate, LocalDate today) {
+        if (startDate.isBefore(MIN_START_DATE) || startDate.isAfter(today.plusYears(5))) {
             throw new InvalidSubscriptionStartDateException();
         }
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(clock.withZone(BUSINESS_ZONE));
     }
 
     private Instant now() {
