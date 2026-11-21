@@ -1,12 +1,21 @@
 package com.Cross.backend.subscription.service;
 
 import com.Cross.backend.subscription.entity.BillingCycle;
+import com.Cross.backend.subscription.entity.Subscription;
+import com.Cross.backend.subscription.entity.SubscriptionStatus;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 
 public final class BillingDateCalculator {
     private BillingDateCalculator() {}
+
+    public static LocalDate nextBillingDate(Subscription subscription, LocalDate from) {
+        if (subscription.getStatus() == SubscriptionStatus.CANCELLED) return null;
+
+        LocalDate anchor = subscription.isTrial() ? subscription.getTrialEndDate() : subscription.getStartDate();
+        return nextBillingDate(anchor, subscription.getBillingCycle(), from);
+    }
 
     public static LocalDate nextBillingDate(LocalDate anchor, BillingCycle cycle, LocalDate from) {
         if (!from.isAfter(anchor)) return anchor;

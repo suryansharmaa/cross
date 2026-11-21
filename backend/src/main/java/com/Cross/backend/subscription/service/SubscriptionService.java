@@ -1,6 +1,7 @@
 package com.Cross.backend.subscription.service;
 
 import com.Cross.backend.auth.exception.InvalidCredentialsException;
+import com.Cross.backend.common.BusinessDate;
 import com.Cross.backend.subscription.dto.*;
 import com.Cross.backend.subscription.entity.*;
 import com.Cross.backend.subscription.exception.*;
@@ -18,7 +19,6 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class SubscriptionService {
     private static final int LIMIT = 100;
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
     private static final LocalDate MIN_START_DATE = LocalDate.of(2000, 1, 1);
 
     private final SubscriptionRepository subscriptions;
@@ -93,12 +93,7 @@ public class SubscriptionService {
     }
 
     private SubscriptionResponse toResponse(Subscription subscription, LocalDate today) {
-        LocalDate nextBillingDate = null;
-        if (subscription.getStatus() != SubscriptionStatus.CANCELLED) {
-            LocalDate anchor = subscription.isTrial() ? subscription.getTrialEndDate() : subscription.getStartDate();
-            nextBillingDate = BillingDateCalculator.nextBillingDate(anchor, subscription.getBillingCycle(), today);
-        }
-        return SubscriptionResponse.from(subscription, nextBillingDate);
+        return SubscriptionResponse.from(subscription, BillingDateCalculator.nextBillingDate(subscription, today));
     }
 
     private void validateStartDate(LocalDate startDate, LocalDate today) {
@@ -108,7 +103,7 @@ public class SubscriptionService {
     }
 
     private LocalDate today() {
-        return LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        return BusinessDate.today(clock);
     }
 
     private Instant now() {
