@@ -52,3 +52,23 @@ Write idiomatic, current Spring Boot code (Spring Boot 4.x, Java 17). Prefer the
 - JUnit Jupiter plus AssertJ. Unit tests for services use Mockito. Controller tests use `@WebMvcTest` with MockMvc. Repository and integration tests use Testcontainers with PostgreSQL (not H2), so tests run against the real database engine.
 - Cover every service and endpoint, including validation failures, the unauthorized case, and "another user's resource returns 404". Date logic tests use a fixed `Clock` and cover month-end and leap years.
 - Name test classes `*Tests` and test methods by behavior (for example `returnsNotFoundForOtherUsersSubscription`).
+## Subscriptions
+
+All subscription operations use the authenticated account. Another account's
+subscription returns the same 404 as a missing subscription.
+
+- Categories are fixed: ENTERTAINMENT, MUSIC, PRODUCTIVITY, CLOUD_AND_AI,
+  EDUCATION, UTILITIES, SHOPPING, and OTHER.
+- Billing cycles are WEEKLY, MONTHLY, and YEARLY. Amounts are INR and must be
+  positive, at most 9,999,999.99, with no more than two fractional digits.
+- A trial must have a trial end date on or after its start date. A non-trial
+  must have a null trial end date. Start dates range from 2000-01-01 through
+  five years after today in Asia/Kolkata, inclusive.
+- Each account can have up to 100 subscriptions, including cancelled ones.
+  Creation at the limit returns 409.
+- New subscriptions are ACTIVE. Cancelled subscriptions can be read, deleted,
+  or cancelled again without changing their timestamps. PUT on a cancelled
+  subscription returns 409.
+- PUT replaces all editable fields: name, category, amount, billing cycle,
+  start date, trial flag, trial end date, and notes. Omitted optional fields
+  are cleared. The server controls identity, ownership, status, and timestamps.

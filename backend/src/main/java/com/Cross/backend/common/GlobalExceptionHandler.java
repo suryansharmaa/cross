@@ -2,6 +2,9 @@ package com.Cross.backend.common;
 
 import com.Cross.backend.auth.exception.DuplicateEmailException;
 import com.Cross.backend.auth.exception.InvalidCredentialsException;
+import com.Cross.backend.subscription.exception.*;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,6 +31,46 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetails.create(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Authentication failed.");
     }
 
+    @ExceptionHandler(SubscriptionNotFoundException.class)
+    ProblemDetail subscriptionNotFound() {
+        return ProblemDetails.create(HttpStatus.NOT_FOUND, "subscription_not_found", "Subscription was not found.");
+    }
+
+    @ExceptionHandler(SubscriptionCancelledException.class)
+    ProblemDetail subscriptionCancelled() {
+        return ProblemDetails.create(HttpStatus.CONFLICT, "subscription_cancelled", "Cancelled subscriptions cannot be updated.");
+    }
+
+    @ExceptionHandler(SubscriptionLimitExceededException.class)
+    ProblemDetail subscriptionLimit() {
+        return ProblemDetails.create(HttpStatus.CONFLICT, "subscription_limit_exceeded", "Subscription limit of 100 reached.");
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail optimisticLockConflict() {
+        return ProblemDetails.create(HttpStatus.CONFLICT, "optimistic_lock_conflict", "The resource changed during this request.");
+    }
+
+    @ExceptionHandler(InvalidSubscriptionStartDateException.class)
+    ProblemDetail invalidSubscriptionStartDate() {
+        return validationProblem(List.of(Map.of("field", "startDate", "message",
+                "Must be between 2000-01-01 and five years from today.")));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException exception,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        if (exception.isForReturnValue()) {
+            return super.handleHandlerMethodValidationException(exception, headers, status, request);
+        }
+        List<Map<String, String>> fields = exception.getParameterValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream().map(error -> Map.of(
+                        "field", result.getMethodParameter().getParameterName(),
+                        "message", java.util.Objects.requireNonNullElse(error.getDefaultMessage(), "Invalid value."))))
+                .toList();
+        return handleExceptionInternal(exception, validationProblem(fields), headers, status, request);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail dataConflict() {
         return ProblemDetails.create(HttpStatus.CONFLICT, "data_conflict", "The request conflicts with stored data.");
@@ -42,12 +85,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        ProblemDetail problem = ProblemDetails.create(HttpStatus.BAD_REQUEST, "validation_failed", "Request validation failed.");
         List<Map<String, String>> fields = exception.getBindingResult().getFieldErrors().stream()
                 .map(error -> Map.of("field", error.getField(), "message", error.getDefaultMessage()))
                 .toList();
+        return handleExceptionInternal(exception, validationProblem(fields), headers, status, request);
+    }
+
+    private ProblemDetail validationProblem(List<Map<String, String>> fields) {
+        ProblemDetail problem = ProblemDetails.create(HttpStatus.BAD_REQUEST, "validation_failed", "Request validation failed.");
         problem.setProperty("fieldErrors", fields);
-        return handleExceptionInternal(exception, problem, headers, status, request);
+        return problem;
     }
 
     @Override
