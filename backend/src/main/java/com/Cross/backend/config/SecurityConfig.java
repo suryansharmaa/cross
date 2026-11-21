@@ -43,7 +43,7 @@ public class SecurityConfig {
     private CorsFilter corsFilter(CorsProperties properties, SecurityProblemHandlers problems) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(properties.frontendOrigin()));
-        configuration.setAllowedMethods(List.of("GET", "POST", "DELETE"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         configuration.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE));
         configuration.setExposedHeaders(List.of(HttpHeaders.LOCATION));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
