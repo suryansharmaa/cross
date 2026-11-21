@@ -72,3 +72,45 @@ subscription returns the same 404 as a missing subscription.
 - PUT replaces all editable fields: name, category, amount, billing cycle,
   start date, trial flag, trial end date, and notes. Omitted optional fields
   are cleared. The server controls identity, ownership, status, and timestamps.
+- Every subscription response includes a computed `nextBillingDate`. Cancelled
+  subscriptions return `null`. The field is never stored.
+- Billing starts on `startDate` for a non-trial and on `trialEndDate` for a
+  trial. That anchor is the first charge date, and subsequent charges are
+  whole weekly, monthly, or yearly cycles from the same anchor.
+- The next billing date is the earliest charge date on or after today in
+  Asia/Kolkata, including today. If the anchor is in the future, it is the next
+  billing date.
+- Short months use the last day when the original day is unavailable. Later
+  months return to the original day when it exists. Yearly billing anchored
+  on February 29 uses February 28 in non-leap years and February 29 in leap years.
+
+## Dashboard
+
+`GET /api/v1/dashboard` returns the authenticated account's dashboard. The
+owner UUID comes from the JWT subject. A request without a token receives 401.
+
+- The dashboard captures today's date once from the shared Clock in Asia/Kolkata
+  and returns it as `generatedOn`. Only ACTIVE subscriptions contribute to
+  `activeCount` or any other dashboard metric.
+- Active non-trials and trials ending today or earlier count as paying.
+  Trials ending after today are pending. `trialsPending` returns their
+  `count` and `monthlyIfConverted`.
+- Annualize each amount using 52 for WEEKLY, 12 for MONTHLY, and 1 for YEARLY.
+  Sum exact decimals for paying `yearlySpend`. Calculate `monthlySpend` and
+  `monthlyIfConverted` by dividing their respective annual totals by 12,
+  rounding once to two decimals with HALF_UP.
+- `categoryBreakdown` contains one entry per paying category with `category`,
+  `count`, `monthlySpend`, and `yearlySpend`, using the same annualization
+  and rounding within each category. Sort by annual spend descending and
+  category name ascending on ties.
+- `upcomingRenewals` includes each active subscription once when its computed
+  next billing date falls between today and today plus 30 days inclusive.
+  Fields are `id`, `name`, `category`, `amount`, `billingCycle`, `isTrial`,
+  `nextBillingDate`, and calendar `daysUntil`. Sort ascending by date,
+  case-insensitive name (Java String.CASE_INSENSITIVE_ORDER), case-sensitive
+  name, then UUID.
+- Dates use ISO YYYY-MM-DD. Money is serialized as JSON numbers with two
+  decimal places and INR implied. An empty account receives 200 with today's
+  date, zero counts, 0.00 monetary fields, and empty arrays.
+- One owner-scoped ACTIVE subscription query feeds in-memory aggregation in a
+  read-only transaction. Dashboard data is computed on demand.
