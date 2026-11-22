@@ -1,0 +1,23 @@
+.page, .form, .card, .confirm, .list {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+.page { max-width: 68rem; margin-inline: auto; }
+.form { max-width: 38rem; }
+.toolbar, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.toolbar { justify-content: space-between; }
+.list { list-style: none; padding: 0; margin: 0; }
+.card, .confirm {
+  padding: var(--space-4);
+  background: var(--surface);
+  border: var(--line) solid var(--border);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+.card h2 { font-size: var(--size-base); margin: 0; }
+.badge { border: var(--line) solid var(--border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); }
+.notes { white-space: pre-wrap; }
+@media (min-width: 48rem) {
+  .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

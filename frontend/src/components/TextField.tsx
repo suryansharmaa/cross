@@ -1,11 +1,13 @@
 ﻿import type { ChangeEventHandler } from 'react'
+import FieldErrors from './FieldErrors'
 import styles from './Controls.module.css'
 
-export default function TextField({ name, label, type, autoComplete, value, onChange, errors }: {
+export default function TextField({ name, label, type, autoComplete, inputMode, value, onChange, errors }: {
   name: string
   label: string
-  type: 'email' | 'password'
-  autoComplete: string
+  type: 'email' | 'password' | 'text' | 'date'
+  autoComplete?: string
+  inputMode?: 'decimal'
   value: string
   onChange: ChangeEventHandler<HTMLInputElement>
   errors: string[]
@@ -13,11 +15,9 @@ export default function TextField({ name, label, type, autoComplete, value, onCh
   const errorId = `${name}-errors`
   return <div className={styles.field}>
     <label htmlFor={name}>{label}</label>
-    <input id={name} name={name} type={type} autoComplete={autoComplete} required
+    <input id={name} name={name} type={type} autoComplete={autoComplete} inputMode={inputMode} required
       value={value} onChange={onChange} aria-invalid={errors.length > 0}
       aria-describedby={errors.length ? errorId : undefined} />
-    <div id={errorId} className={styles.error} aria-live="polite">
-      {errors.map((message, index) => <div key={index}>{message}</div>)}
-    </div>
+    <FieldErrors name={name} errors={errors} />
   </div>
 }

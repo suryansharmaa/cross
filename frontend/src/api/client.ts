@@ -1,5 +1,5 @@
-﻿import { clearSession, readSession } from '../features/auth/session'
-import type { Credentials, FieldError } from './types'
+﻿import { rejectSession, readSession } from '../features/auth/session'
+import type { FieldError } from './types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -45,21 +45,22 @@ async function parseError(response: Response) {
 }
 
 export async function request<T>(path: string, options: {
-  body?: Credentials
+  body?: object
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   authenticated?: boolean
   signal?: AbortSignal
 } = {}): Promise<T> {
   const headers = new Headers()
   if (options.body) headers.set('Content-Type', 'application/json')
+  const session = options.authenticated ? readSession().session : null
   if (options.authenticated) {
-    const { session } = readSession()
     if (!session) throw new ApiError(401, 'session_expired', 'Your session expired. Please log in again.')
     headers.set('Authorization', `Bearer ${session.accessToken}`)
   }
   let response: Response
   try {
     response = await fetch(`${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}${path}`, {
-      method: options.body ? 'POST' : 'GET',
+      method: options.method ?? (options.body ? 'POST' : 'GET'),
       headers,
       body: options.body && JSON.stringify(options.body),
       signal: options.signal,
@@ -69,8 +70,9 @@ export async function request<T>(path: string, options: {
     throw new ApiError(0, 'network_error', 'Could not reach the server. Please try again.')
   }
   if (!response.ok) {
-    if (response.status === 401 && options.authenticated) clearSession()
+    if (response.status === 401 && session) rejectSession(session)
     throw await parseError(response)
   }
+  if (response.status === 204) return undefined as T
   return response.json()
 }

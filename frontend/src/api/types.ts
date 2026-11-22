@@ -1,4 +1,33 @@
-﻿export interface Credentials {
+﻿export type Category = 'ENTERTAINMENT' | 'MUSIC' | 'PRODUCTIVITY' | 'CLOUD_AND_AI' | 'EDUCATION' | 'UTILITIES' | 'SHOPPING' | 'OTHER'
+export type BillingCycle = 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+export type SubscriptionStatus = 'ACTIVE' | 'CANCELLED'
+export interface SubscriptionBody {
+  name: string
+  category: Category
+  amount: number
+  billingCycle: BillingCycle
+  startDate: string
+  isTrial: boolean
+  trialEndDate: string | null
+  notes: string | null
+}
+export interface Subscription extends SubscriptionBody {
+  id: string
+  status: SubscriptionStatus
+  nextBillingDate: string | null
+  createdAt: string
+  updatedAt: string
+  cancelledAt: string | null
+}
+export interface SubscriptionPage {
+  items: Subscription[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface Credentials {
   email: string
   password: string
 }

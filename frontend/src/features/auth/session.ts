@@ -27,6 +27,20 @@ export function readSession(): { session: LoginResponse | null; expired: boolean
   return { session: null, expired: false }
 }
 
+const rejectionListeners = new Set<() => void>()
+
+export function onSessionRejected(listener: () => void) {
+  rejectionListeners.add(listener)
+  return () => { rejectionListeners.delete(listener) }
+}
+
+export function rejectSession(rejected: LoginResponse) {
+  const current = readSession().session
+  if (current?.accessToken !== rejected.accessToken || current.expiresAt !== rejected.expiresAt) return
+  clearSession()
+  for (const listener of rejectionListeners) listener()
+}
+
 export function storeSession(session: LoginResponse) {
   sessionStorage.setItem(key, JSON.stringify({
     accessToken: session.accessToken.trim(),

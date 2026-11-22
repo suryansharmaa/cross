@@ -75,8 +75,8 @@ it.each(['/login', '/register', '/'])('restores a session from storage at %s bef
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   resolve(Response.json(account))
   expect(await screen.findByText(account.email)).toBeVisible()
-  expect(screen.getByRole('heading', { name: 'Subscriptions coming soon' })).toBeVisible()
-  expect(window.location.pathname).toBe('/')
+  expect(await screen.findByRole('heading', { name: 'Subscriptions' })).toBeVisible()
+  expect(window.location.pathname).toBe('/subscriptions')
 })
 
 it('clears an unauthorized restored session and its query', async () => {
@@ -239,7 +239,7 @@ it('stores the session before profile fetch, keeps login pending, and restores a
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   resolve(Response.json(account))
   expect(await screen.findByText(account.email)).toBeVisible()
-  expect(window.location.pathname).toBe('/')
+  expect(window.location.pathname).toBe('/subscriptions')
   first.unmount()
   fetchMock.mockResolvedValueOnce(Response.json(account))
   mount('/')
