@@ -3,6 +3,8 @@ package com.Cross.backend.common;
 import com.Cross.backend.auth.exception.DuplicateEmailException;
 import com.Cross.backend.auth.exception.InvalidCredentialsException;
 import com.Cross.backend.subscription.exception.*;
+import com.Cross.backend.notification.exception.NotificationNotFoundException;
+import com.Cross.backend.notification.exception.ReminderRunInProgressException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.slf4j.Logger;
@@ -20,6 +22,17 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    ProblemDetail notificationNotFound() {
+        return ProblemDetails.create(HttpStatus.NOT_FOUND, "notification_not_found", "Notification not found.");
+    }
+
+    @ExceptionHandler(ReminderRunInProgressException.class)
+    ProblemDetail reminderRunInProgress() {
+        return ProblemDetails.create(HttpStatus.CONFLICT, "reminder_run_in_progress",
+                "A reminder run is already in progress.");
+    }
 
     @ExceptionHandler(DuplicateEmailException.class)
     ProblemDetail duplicateEmail() {

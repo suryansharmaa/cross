@@ -114,3 +114,49 @@ owner UUID comes from the JWT subject. A request without a token receives 401.
   date, zero counts, 0.00 monetary fields, and empty arrays.
 - One owner-scoped ACTIVE subscription query feeds in-memory aggregation in a
   read-only transaction. Dashboard data is computed on demand.
+
+
+## Reminders (5a)
+
+- Each run captures one Asia/Kolkata date. For each ACTIVE subscription, the
+  billing calculator supplies the next billing date, including today. At three
+  or two days before billing create a THREE_DAYS alert. At one day before
+  billing or on the billing date create a ONE_DAY alert. Each window allows
+  one day of catch-up. A run at one day before billing creates only ONE_DAY
+  even if the earlier window was missed. There is at most one alert per
+  subscription per run.
+- CANCELLED subscriptions do not alert. A trial's first charge is TRIAL_ENDING.
+  Later charges and ordinary subscriptions use RENEWAL. Messages give the
+  actual time remaining and the amount in INR. Messages are plain text
+  containing user-supplied names. Clients must escape them for their rendering
+  context and render them as text.
+- PostgreSQL enforces uniqueness by subscription, billing date, and alert type.
+  Runs process stable batches of 200 and isolate failures per subscription.
+  After processing, delete notifications strictly older than 90 days.
+  Cleanup failure does not fail the run.
+- The scheduler runs daily at 08:00 Asia/Kolkata. Set
+  `cross.reminders.scheduler-enabled=false` to disable it. For GitHub Actions,
+  use cron `30 2 * * *` and POST to `/api/v1/internal/reminders/run`.
+  Set `REMINDER_TRIGGER_TOKEN` on the backend and store the same value as an
+  Actions secret. Send it as `X-Reminder-Token`. An absent variable disables
+  the trigger with 404. A configured value needs at least 32 UTF-8 bytes.
+  Missing or invalid credentials return 401. The trigger accepts no CORS
+  access or JWT credentials.
+- The trigger returns 200 with `runDate`, `subscriptionsChecked`,
+  `notificationsCreated`, and `failures`. An overlapping run returns 409
+  with code `reminder_run_in_progress`.
+- `GET /api/v1/notifications` requires a JWT and returns the owner's rows.
+  It supports `page` (default 0), `size` (default 20, maximum 50), and
+  `unreadOnly` (default false). It uses the subscription page format and sorts
+  by creation timestamp and ID, both descending. Items expose `id`,
+  `subscriptionId`, `kind`, `alertType`, `billingDate`, `message`,
+  `createdAt`, and nullable `readAt`.
+- `GET /api/v1/notifications/unread-count` returns `{"count": n}`.
+  `POST /api/v1/notifications/{id}/read` returns the notification and
+  preserves the first read time. Another owner's ID returns 404.
+  `POST /api/v1/notifications/read-all` returns `{"updated": n}`.
+  All use the JWT owner. Account and subscription deletions cascade.
+
+## Reminder email (5b)
+
+Email delivery will be added separately and tracked per notification and channel.
