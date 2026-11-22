@@ -38,3 +38,18 @@ read of active rows in memory. The dashboard and subscription endpoints share
 the Kolkata date calculation and billing anchors. Exact annual totals are
 summed before monthly rounding, so per-subscription rounding errors do not
 accumulate. The dashboard requires no persisted aggregates.
+
+
+## Reminders
+
+A PostgreSQL advisory transaction lock coordinates the cron and scheduler.
+Each subscription commits independently, and the unique alert key makes
+same-window retries safe. The lock transaction holds one connection while
+workers use another. The cron endpoint uses a separate security chain and
+compares fixed-length digests of the configured and supplied credentials.
+
+The in-app alert is available as soon as its row commits. A future email
+channel will enqueue a delivery record alongside the alert with a unique
+notification and channel pair. A worker will send outside the transaction
+using a stable provider idempotency key, then record success or retry state
+on the delivery row. Reminder deduplication stays at the alert insert.

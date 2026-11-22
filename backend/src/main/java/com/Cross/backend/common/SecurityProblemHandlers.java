@@ -38,6 +38,10 @@ public class SecurityProblemHandlers implements AuthenticationEntryPoint, Access
         write(response, HttpStatus.FORBIDDEN, "access_denied", "Access denied.");
     }
 
+    public void write(HttpServletResponse response, HttpStatus status, String code, String message) throws IOException {
+        write(new ServletServerHttpResponse(response), status, code, message);
+    }
+
     private void write(org.springframework.http.server.ServerHttpResponse response, HttpStatus status,
             String code, String message) throws IOException {
         response.setStatusCode(status);
