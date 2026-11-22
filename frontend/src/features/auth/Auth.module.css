@@ -1,0 +1,25 @@
+﻿.layout {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5) var(--space-4);
+}
+.card {
+  display: grid;
+  gap: var(--space-5);
+  width: min(100%, 26rem);
+  padding: clamp(var(--space-5), 6vw, var(--space-6));
+  border: var(--line) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.form { display: grid; gap: var(--space-4); }
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

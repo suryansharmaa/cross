@@ -1,0 +1,12 @@
+﻿.header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4) clamp(var(--space-4), 5vw, var(--space-7));
+  border-bottom: var(--line) solid var(--border);
+  background: var(--surface);
+}
+.header strong { margin-inline-end: auto; }
+.header span { overflow-wrap: anywhere; min-width: 0; }
+.main { padding: var(--space-6) clamp(var(--space-4), 5vw, var(--space-7)); }

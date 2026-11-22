@@ -1,0 +1,29 @@
+﻿:root {
+  --background: #F7F5F0;
+  --surface: #FFFFFF;
+  --text: #1C1C1A;
+  --muted: #6B6A63;
+  --border: #E5E2D9;
+  --accent: #2F5D50;
+  --error: #B3402F;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --font: system-ui, sans-serif;
+  --size-base: 1rem;
+  --size-small: .875rem;
+  --size-title: 1.75rem;
+  --regular: 400;
+  --strong: 600;
+  --line: 1px;
+  --radius: .5rem;
+  --shadow: 0 2px 8px color-mix(in srgb, var(--text) 5%, transparent);
+  --duration: 175ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration: 0ms; }
+}
