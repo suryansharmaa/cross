@@ -1,0 +1,33 @@
+﻿.button {
+  padding: var(--space-3) var(--space-4);
+  border: var(--line) solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--surface);
+  font: inherit;
+  font-weight: var(--strong);
+  cursor: pointer;
+  transition: background-color var(--duration), color var(--duration);
+}
+.button:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--accent);
+}
+.button:disabled { cursor: wait; }
+
+.field { display: grid; gap: var(--space-1); }
+.field label { font-weight: var(--strong); }
+.field input {
+  width: 100%;
+  padding: var(--space-3);
+  border: var(--line) solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  transition: border-color var(--duration);
+}
+.field input[aria-invalid="true"] { border-color: var(--error); }
+.error { color: var(--error); }
+.field .error { font-size: var(--size-small); }
+.field .error:empty { height: 0; }

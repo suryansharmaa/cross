@@ -53,3 +53,17 @@ channel will enqueue a delivery record alongside the alert with a unique
 notification and channel pair. A worker will send outside the transaction
 using a stable provider idempotency key, then record success or retry state
 on the delivery row. Reminder deduplication stays at the alert insert.
+
+## Frontend authentication (6a)
+
+Vite sends requests directly to the API using its configured base URL and the
+backend's existing localhost CORS allowlist. Each tab stores one session with
+the server's expiry. Expiry and logout cancel and remove the current-user
+query. A protected 401 ends the session while invalid credentials on the login
+request leave the form available for another attempt.
+
+The client checks email length and requires exactly one at sign with nonempty,
+whitespace-free text on both sides. The API handles stricter validation. The
+fixed palette uses muted input borders, accent focus rings with an offset,
+and error text on light surfaces. Labels and live error messages accompany
+those visual cues.
