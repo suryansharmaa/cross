@@ -54,6 +54,14 @@ notification and channel pair. A worker will send outside the transaction
 using a stable provider idempotency key, then record success or retry state
 on the delivery row. Reminder deduplication stays at the alert insert.
 
+## Subscription management (6b)
+
+The shared protected shell redirects the root to subscriptions while the
+dashboard is pending. Subscription queries are scoped to the authenticated
+account, invalidated after writes, and cleared on session end. Protected API
+rejections use the existing session-expiry redirect. Date-only display uses
+an explicit timezone and form bounds use the Kolkata business date.
+
 ## Frontend authentication (6a)
 
 Vite sends requests directly to the API using its configured base URL and the
@@ -67,3 +75,16 @@ whitespace-free text on both sides. The API handles stricter validation. The
 fixed palette uses muted input borders, accent focus rings with an offset,
 and error text on light surfaces. Labels and live error messages accompany
 those visual cues.
+
+## Dashboard, notifications, and account deletion (6c)
+
+The dashboard presents server-calculated spend and uses annual totals for
+category proportions. Dashboard and notification queries are scoped to the
+signed-in account. Subscription writes refresh the dashboard, and subscription
+deletion refreshes notification queries because the database cascades those rows.
+Notification read actions refresh both the list and the shared unread count.
+
+Account deletion uses an inline email confirmation and the existing authenticated
+DELETE endpoint. The auth provider uses one teardown path to cancel and remove
+queries on logout, expiry, and deletion, with a distinct notice after deletion.
+Calendar dates retain the 6b formatter and timestamps display in Asia/Kolkata.

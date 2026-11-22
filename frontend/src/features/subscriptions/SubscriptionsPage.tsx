@@ -8,7 +8,8 @@ import Alert from '../../components/Alert'
 import Button from '../../components/Button'
 import SubscriptionCard from './SubscriptionCard'
 import type { Action } from './SubscriptionCard'
-import { detailQuery, listQuery, sessionGuard, subscriptionsKey, useAccount } from './queries'
+import { detailQuery, listQuery, refreshSubscriptionViews } from './queries'
+import { sessionGuard, useAccount } from '../auth/account'
 import styles from './Subscriptions.module.css'
 
 const filters = [{ label: 'All', status: undefined }, { label: 'Active', status: 'ACTIVE' },
@@ -61,7 +62,7 @@ export default function SubscriptionsPage() {
     const current = sessionGuard()
     const { id, action } = selection
     const { queryKey } = detailQuery(account, id)
-    const refresh = () => { void cache.invalidateQueries({ queryKey: subscriptionsKey(account) }) }
+    const refresh = () => { refreshSubscriptionViews(cache, account) }
     setError('')
     setNotice('')
     try {
@@ -72,7 +73,7 @@ export default function SubscriptionsPage() {
       trigger.current = null
       dismiss()
       setNotice(action === 'Cancel' ? 'Subscription cancelled.' : 'Subscription deleted.')
-      refresh()
+      refreshSubscriptionViews(cache, account, action === 'Delete')
     } catch (failure) {
       if (!current()) return
       if (failure instanceof ApiError && (failure.status === 404 || failure.code === 'optimistic_lock_conflict')) {
@@ -122,3 +123,4 @@ export default function SubscriptionsPage() {
     </>}
   </section>
 }
+

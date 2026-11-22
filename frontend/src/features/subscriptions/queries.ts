@@ -1,19 +1,10 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { getSubscription, listSubscriptions } from '../../api/subscriptions'
 import type { SubscriptionStatus } from '../../api/types'
-import { useAuth } from '../auth/auth-context'
-import { readSession } from '../auth/session'
+import { dashboardKey } from '../dashboard/queries'
+import { notificationsKey } from '../notifications/queries'
 
 export const subscriptionsKey = (account: string) => ['subscriptions', account] as const
-export function useAccount() {
-  const { user } = useAuth()
-  if (!user) throw new Error('Subscriptions require an account')
-  return user.id
-}
-export function sessionGuard() {
-  const { session } = readSession()
-  return () => session !== null && readSession().session?.accessToken === session.accessToken
-}
 export const listQuery = (account: string, page: number, status?: SubscriptionStatus) => queryOptions({
   queryKey: [...subscriptionsKey(account), 'list', status ?? 'all', page, 20],
   queryFn: ({ signal }) => listSubscriptions(page, status, signal),
@@ -24,3 +15,9 @@ export const detailQuery = (account: string, id: string) => queryOptions({
   queryFn: ({ signal }) => getSubscription(id, signal),
   retry: false,
 })
+
+export function refreshSubscriptionViews(cache: QueryClient, account: string, deleted = false) {
+  void cache.invalidateQueries({ queryKey: subscriptionsKey(account) })
+  void cache.invalidateQueries({ queryKey: dashboardKey(account) })
+  if (deleted) void cache.invalidateQueries({ queryKey: notificationsKey(account) })
+}

@@ -1,0 +1,19 @@
+.actions, .bell { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.list { list-style: none; padding: 0; display: grid; gap: var(--space-3); }
+.card {
+  background: var(--surface);
+  border: var(--line) solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.badge {
+  color: var(--accent);
+  border: var(--line) solid currentColor;
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+.unread { font-weight: var(--strong); color: var(--accent); }
+.read { color: var(--muted); }
+.card p { margin-block: var(--space-2); }
+.actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: var(--strong); }

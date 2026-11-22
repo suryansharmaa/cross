@@ -1,0 +1,17 @@
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-4);
+}
+.list { list-style: none; padding: 0; display: grid; gap: var(--space-3); }
+.metrics > div, .list > li {
+  border: var(--line) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.metrics dd { margin: var(--space-2) 0 0; font-weight: var(--strong); }
+.track { background: var(--border); }
+.bar { background: var(--accent); height: 0.4rem; }
+.badge { margin-inline-start: var(--space-3); color: var(--accent); }

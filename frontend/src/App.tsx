@@ -1,5 +1,5 @@
-﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Route, Routes } from 'react-router'
 import AuthProvider from './features/auth/AuthProvider'
 import GuestOnly from './features/auth/GuestOnly'
 import LoginPage from './features/auth/LoginPage'
@@ -10,6 +10,10 @@ import SubscriptionsPage from './features/subscriptions/SubscriptionsPage'
 import CreateSubscriptionPage from './features/subscriptions/CreateSubscriptionPage'
 import EditSubscriptionPage from './features/subscriptions/EditSubscriptionPage'
 import NotFoundPage from './features/not-found/NotFoundPage'
+
+import DashboardPage from './features/dashboard/DashboardPage'
+import NotificationsPage from './features/notifications/NotificationsPage'
+import AccountPage from './features/account/AccountPage'
 
 const queryClient = new QueryClient()
 
@@ -24,7 +28,9 @@ export default function App({ client = queryClient }: { client?: QueryClient }) 
           </Route>
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
-              <Route index element={<Navigate to="/subscriptions" replace />} />
+              <Route index element={<DashboardPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/account" element={<AccountPage />} />
               <Route path="/subscriptions" element={<SubscriptionsPage />} />
               <Route path="/subscriptions/new" element={<CreateSubscriptionPage />} />
               <Route path="/subscriptions/:id/edit" element={<EditSubscriptionPage />} />
@@ -36,3 +42,4 @@ export default function App({ client = queryClient }: { client?: QueryClient }) 
     </BrowserRouter>
   </QueryClientProvider>
 }
+
