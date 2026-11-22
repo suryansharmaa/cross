@@ -15,9 +15,11 @@
 }
 .button:disabled { cursor: wait; }
 
+.button[aria-pressed="false"] { background: var(--surface); color: var(--accent); }
+
 .field { display: grid; gap: var(--space-1); }
 .field label { font-weight: var(--strong); }
-.field input {
+.field :is(input, select, textarea) {
   width: 100%;
   padding: var(--space-3);
   border: var(--line) solid var(--muted);
@@ -27,7 +29,7 @@
   font: inherit;
   transition: border-color var(--duration);
 }
-.field input[aria-invalid="true"] { border-color: var(--error); }
+.field :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--error); }
 .error { color: var(--error); }
 .field .error { font-size: var(--size-small); }
 .field .error:empty { height: 0; }

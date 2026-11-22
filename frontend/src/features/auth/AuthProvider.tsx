@@ -7,7 +7,7 @@ import { login } from '../../api/auth'
 import type { Credentials } from '../../api/types'
 import { currentUserKey, getCurrentUser } from '../../api/users'
 import { AuthContext } from './auth-context'
-import { clearSession, readSession, storeSession } from './session'
+import { clearSession, onSessionRejected, readSession, storeSession } from './session'
 
 const profile = {
   queryKey: currentUserKey,
@@ -41,12 +41,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
     void cache.cancelQueries({ queryKey: currentUserKey })
     cache.removeQueries({ queryKey: currentUserKey })
+    void cache.cancelQueries({ queryKey: ['subscriptions'] })
+    cache.removeQueries({ queryKey: ['subscriptions'] })
   }, [cache])
 
   const endSession = useCallback((notice?: string) => {
     discard()
     setLoginRedirect({ from: locationKey, notice })
   }, [discard, locationKey])
+
+  useEffect(() => session ? onSessionRejected(() => endSession(expiredNotice)) : undefined, [session, endSession])
 
   useEffect(() => {
     if (!session || !unauthorized) return
