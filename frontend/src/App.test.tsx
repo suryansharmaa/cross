@@ -1,4 +1,4 @@
-﻿import { QueryClient } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -16,7 +16,15 @@ const profileError = 'Could not load your account. Please try again.'
 
 beforeEach(() => {
   fetchMock.mockReset()
-  vi.stubGlobal('fetch', fetchMock)
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(input)).pathname
+    if (path.endsWith('/notifications/unread-count')) return Promise.resolve(Response.json({ count: 0 }))
+    if (path.endsWith('/dashboard')) return Promise.resolve(Response.json({
+      activeCount: 0, monthlySpend: 0, yearlySpend: 0, categoryBreakdown: [],
+      trialsPending: { count: 0, monthlyIfConverted: 0 }, upcomingRenewals: [],
+    }))
+    return fetchMock(input, init)
+  })
   vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8080')
 })
 
@@ -49,8 +57,8 @@ function submit(name: string) {
   fireEvent.click(screen.getByRole('button', { name }))
 }
 
-it('redirects anonymous Home access and renders the public 404', async () => {
-  const home = mount('/')
+it.each(['/', '/notifications', '/account'])('redirects anonymous access at %s and renders the public 404', async path => {
+  const home = mount(path)
   expect(await screen.findByRole('heading', { name: 'Log in' })).toBeVisible()
   expect(fetchMock).not.toHaveBeenCalled()
   home.unmount()
@@ -74,9 +82,9 @@ it.each(['/login', '/register', '/'])('restores a session from storage at %s bef
   expect(screen.getByRole('status')).toHaveTextContent('Loading your account...')
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   resolve(Response.json(account))
-  expect(await screen.findByText(account.email)).toBeVisible()
-  expect(await screen.findByRole('heading', { name: 'Subscriptions' })).toBeVisible()
-  expect(window.location.pathname).toBe('/subscriptions')
+  expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
+  expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  expect(window.location.pathname).toBe('/')
 })
 
 it('clears an unauthorized restored session and its query', async () => {
@@ -97,7 +105,7 @@ it('keeps the stored session and retries restoration only on request', async () 
   expect(readSession().session).toEqual(session)
   expect(fetchMock).toHaveBeenCalledTimes(1)
   submit('Retry')
-  expect(await screen.findByText(account.email)).toBeVisible()
+  expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
 })
 
 it('ends an open session at the timer deadline', async () => {
@@ -107,7 +115,7 @@ it('ends an open session at the timer deadline', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   mount('/')
   await act(async () => { await vi.advanceTimersByTimeAsync(100) })
-  expect(screen.getByText(account.email)).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Account' })).toBeVisible()
   await act(async () => { await vi.advanceTimersByTimeAsync(59_900) })
   expect(screen.getByText(expired)).toBeVisible()
   expect(sessionStorage.length).toBe(0)
@@ -238,12 +246,12 @@ it('stores the session before profile fetch, keeps login pending, and restores a
   expect(fetchMock).toHaveBeenCalledTimes(2)
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   resolve(Response.json(account))
-  expect(await screen.findByText(account.email)).toBeVisible()
-  expect(window.location.pathname).toBe('/subscriptions')
+  expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
+  expect(window.location.pathname).toBe('/')
   first.unmount()
   fetchMock.mockResolvedValueOnce(Response.json(account))
   mount('/')
-  expect(await screen.findByText(account.email)).toBeVisible()
+  expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
   expect(fetchMock).toHaveBeenCalledTimes(3)
 })
 
@@ -266,7 +274,7 @@ it('replaces Home on logout, clears the profile, and guards older Home history',
   const { client } = mount('/')
   window.history.pushState(null, '', '/')
   const length = window.history.length
-  await screen.findByText(account.email)
+  await screen.findByRole('link', { name: 'Account' })
   expect(client.getQueryData(currentUserKey)).toEqual(account)
   submit('Logout')
   expect(await screen.findByRole('heading', { name: 'Log in' })).toBeVisible()
@@ -282,4 +290,6 @@ it('replaces Home on logout, clears the profile, and guards older Home history',
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   expect(fetchMock).toHaveBeenCalledTimes(1)
 })
+
+
 

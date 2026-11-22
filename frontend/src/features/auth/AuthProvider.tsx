@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate, useLocation, useNavigate } from 'react-router'
@@ -23,6 +23,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [initial] = useState(readSession)
   const [session, setSession] = useState(initial.session)
   const { key: locationKey } = useLocation()
+  const latestLocation = useRef(locationKey)
+  useEffect(() => { latestLocation.current = locationKey }, [locationKey])
   const [loginRedirect, setLoginRedirect] = useState<{ from: string; notice?: string } | null>(
     initial.expired ? { from: locationKey, notice: expiredNotice } : null,
   )
@@ -39,16 +41,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const discard = useCallback(() => {
     clearSession()
     setSession(null)
-    void cache.cancelQueries({ queryKey: currentUserKey })
-    cache.removeQueries({ queryKey: currentUserKey })
-    void cache.cancelQueries({ queryKey: ['subscriptions'] })
-    cache.removeQueries({ queryKey: ['subscriptions'] })
+    void cache.cancelQueries()
+    cache.removeQueries()
   }, [cache])
 
   const endSession = useCallback((notice?: string) => {
     discard()
-    setLoginRedirect({ from: locationKey, notice })
-  }, [discard, locationKey])
+    setLoginRedirect({ from: latestLocation.current, notice })
+  }, [discard])
 
   useEffect(() => session ? onSessionRejected(() => endSession(expiredNotice)) : undefined, [session, endSession])
 
@@ -99,5 +99,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     retry: () => { void query.refetch() },
     signIn,
     signOut: () => endSession(),
+    accountDeleted: () => endSession('Your account has been deleted.'),
   }}>{children}</AuthContext.Provider>
 }
+

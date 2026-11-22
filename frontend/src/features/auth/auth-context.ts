@@ -1,4 +1,4 @@
-﻿import { createContext, useContext } from 'react'
+import { createContext, useContext } from 'react'
 import type { Credentials, UserResponse } from '../../api/types'
 
 export const AuthContext = createContext<{
@@ -8,6 +8,7 @@ export const AuthContext = createContext<{
   retry: () => void
   signIn: (credentials: Credentials) => Promise<void>
   signOut: () => void
+  accountDeleted: () => void
 } | null>(null)
 
 export function useAuth() {
@@ -15,3 +16,4 @@ export function useAuth() {
   if (!auth) throw new Error('AuthProvider is required')
   return auth
 }
+

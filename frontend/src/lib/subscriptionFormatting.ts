@@ -16,3 +16,8 @@ export function calendarDate(value: string) {
   return date
 }
 export const formatCalendarDate = (value: string) => formatter.format(calendarDate(value))
+
+const instantDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone: 'Asia/Kolkata' })
+const instantTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })
+export const formatInstantDate = (value: string) => instantDate.format(new Date(value))
+export const formatTimestamp = (value: string) => instantTime.format(new Date(value))

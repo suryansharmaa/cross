@@ -47,3 +47,53 @@ export interface FieldError {
   field: string
   message: string
 }
+
+export interface CategorySpend {
+  category: Category
+  count: number
+  monthlySpend: number
+  yearlySpend: number
+}
+
+export interface UpcomingRenewal {
+  id: string
+  name: string
+  category: Category
+  amount: number
+  billingCycle: BillingCycle
+  isTrial: boolean
+  nextBillingDate: string
+  daysUntil: number
+}
+
+export interface DashboardResponse {
+  generatedOn: string
+  activeCount: number
+  monthlySpend: number
+  yearlySpend: number
+  categoryBreakdown: CategorySpend[]
+  trialsPending: { count: number; monthlyIfConverted: number }
+  upcomingRenewals: UpcomingRenewal[]
+}
+
+export interface NotificationItem {
+  id: string
+  subscriptionId: string
+  kind: 'TRIAL_ENDING' | 'RENEWAL'
+  alertType: 'THREE_DAYS' | 'ONE_DAY'
+  billingDate: string
+  message: string
+  createdAt: string
+  readAt: string | null
+}
+
+export interface NotificationPage {
+  items: NotificationItem[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface UnreadCountResponse { count: number }
+export interface ReadAllResponse { updated: number }

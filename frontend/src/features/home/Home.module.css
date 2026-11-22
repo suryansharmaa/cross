@@ -11,3 +11,4 @@
 .header a[aria-current="page"] { font-weight: var(--strong); }
 .header span { overflow-wrap: anywhere; min-width: 0; }
 .main { padding: var(--space-6) clamp(var(--space-4), 5vw, var(--space-7)); }
+.nav { display: flex; flex-wrap: wrap; gap: var(--space-4); }

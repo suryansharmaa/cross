@@ -6,6 +6,8 @@ import App from '../../App'
 import { storeSession } from '../auth/session'
 
 const path = '/api/v1/subscriptions'
+const dashboardKey = ['dashboard', 'account']
+const notificationKey = ['notifications', 'account', 'list', 'all', 0, 20]
 const body = { name: '<b>Plan</b>', category: 'OTHER', amount: 120, billingCycle: 'MONTHLY',
   startDate: '2024-02-29', isTrial: true, trialEndDate: '2024-03-01', notes: '<em>Notes</em>' }
 const item = { ...body, id: 'one', status: 'ACTIVE', nextBillingDate: '2024-03-01' }
@@ -21,6 +23,7 @@ function mount(route: string, respond: (url: URL, init?: RequestInit) => Respons
   vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8080')
   const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input))
+    if (url.pathname.endsWith('/notifications/unread-count')) return Response.json({ count: 0 })
     return url.pathname.endsWith('/users/me') ? Response.json({ id: 'account', email: 'person@example.test' }) : respond(url, init)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -31,7 +34,7 @@ function mount(route: string, respond: (url: URL, init?: RequestInit) => Respons
 
 it('renders text and status badges and confirms cancel and delete before refreshing', async () => {
   let items: (typeof item | typeof cancelled)[] = [item, { ...item, id: 'two', name: 'Regular', isTrial: false }]
-  const { user, container } = mount('/', (url, init) => {
+  const { user, container, client } = mount('/subscriptions', (url, init) => {
     if (url.pathname.endsWith('/cancel')) {
       items = items.map(entry => entry.id === 'one' ? cancelled : entry)
       return Response.json(cancelled)
@@ -42,6 +45,8 @@ it('renders text and status badges and confirms cancel and delete before refresh
     }
     return page(items)
   })
+  client.setQueryData(dashboardKey, {})
+  client.setQueryData(notificationKey, {})
   const name = await screen.findByRole('heading', { name: body.name })
   expect(container.querySelector('h2 b, li em')).toBeNull()
   expect(screen.getAllByText(body.notes)).toHaveLength(2)
@@ -57,10 +62,15 @@ it('renders text and status badges and confirms cancel and delete before refresh
   await user.click(cancel)
   await user.click(screen.getByRole('button', { name: 'Confirm cancel' }))
   expect(await within(card).findByText('Cancelled')).toBeVisible()
+  expect(client.getQueryState(dashboardKey)?.isInvalidated).toBe(true)
+  expect(client.getQueryState(notificationKey)?.isInvalidated).toBe(false)
+  client.setQueryData(dashboardKey, {})
   expect(within(card).queryByRole('link', { name: 'Edit' })).toBeNull()
   await user.click(within(card).getByRole('button', { name: 'Delete' }))
   await user.click(screen.getByRole('button', { name: 'Confirm delete' }))
   expect(await screen.findByText('Subscription deleted.')).toHaveAttribute('role', 'status')
+  expect(client.getQueryState(dashboardKey)?.isInvalidated).toBe(true)
+  expect(client.getQueryState(notificationKey)?.isInvalidated).toBe(true)
   expect(await screen.findByText('Page 1 of 1 (1 total)')).toBeVisible()
 })
 
@@ -84,10 +94,11 @@ it('handles loading, retry, pagination and filtered empty results', async () => 
 it('prepopulates edit, clears trial end, and redirects after a full PUT', async () => {
   let finish: (response: Response) => void = () => {}
   const deferred = new Promise<Response>(resolve => { finish = resolve })
-  const { user, fetchMock } = mount('/subscriptions/one/edit', (url, init) => {
+  const { user, fetchMock, client } = mount('/subscriptions/one/edit', (url, init) => {
     if (init?.method === 'PUT') return deferred
     return url.pathname === path ? page([]) : Response.json(item)
   })
+  client.setQueryData(dashboardKey, {})
   expect(await screen.findByLabelText('Name')).toHaveValue(body.name)
   expect(screen.getByLabelText('Trial end date')).toHaveValue(body.trialEndDate)
   await user.click(screen.getByLabelText('Trial'))
@@ -99,6 +110,7 @@ it('prepopulates edit, clears trial end, and redirects after a full PUT', async 
   expect(JSON.parse(String(put?.[1]?.body))).toEqual({ ...body, isTrial: false, trialEndDate: null })
   finish(Response.json(item))
   expect(await screen.findByText('Subscription updated.')).toBeVisible()
+  expect(client.getQueryState(dashboardKey)?.isInvalidated).toBe(true)
   expect(await screen.findByText(/No subscriptions yet/)).toBeVisible()
 })
 
@@ -150,6 +162,7 @@ it.each(['created', 'expired'])('handles a %s create response', async outcome =>
     ? outcome === 'created' ? Response.json(item, { status: 201 }) : problem(401, 'invalid_credentials')
     : page([item]))
   const listKey = ['subscriptions', 'account', 'list', 'all', 0, 20]
+  client.setQueryData(dashboardKey, {})
   client.setQueryData(listKey, { items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })
   await user.type(await screen.findByLabelText('Name'), 'Plan')
   await user.selectOptions(screen.getByLabelText('Category'), 'OTHER')
@@ -159,6 +172,7 @@ it.each(['created', 'expired'])('handles a %s create response', async outcome =>
   await user.click(screen.getByRole('button', { name: 'Save subscription' }))
   if (outcome === 'created') {
     expect(await screen.findByText('Subscription added.')).toHaveAttribute('role', 'status')
+    expect(client.getQueryState(dashboardKey)?.isInvalidated).toBe(true)
     expect(await screen.findByRole('heading', { name: body.name })).toBeVisible()
   } else {
     expect(await screen.findByText('Your session expired. Please log in again.')).toBeVisible()
@@ -170,6 +184,9 @@ it.each(['created', 'expired'])('handles a %s create response', async outcome =>
 it('redirects a protected list 401 and clears account query data', async () => {
   const { client, fetchMock } = mount('/subscriptions', () => problem(401, 'invalid_credentials'))
   expect(await screen.findByText('Your session expired. Please log in again.')).toBeVisible()
-  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls.filter(([url]) => new URL(String(url)).pathname === path)).toHaveLength(1)
   expect(client.getQueriesData({ queryKey: ['subscriptions'] })).toEqual([])
 })
+
+
+

@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { createSubscription } from '../../api/subscriptions'
 import SubscriptionForm from './SubscriptionForm'
-import { sessionGuard, subscriptionsKey, useAccount } from './queries'
+import { refreshSubscriptionViews } from './queries'
+import { sessionGuard, useAccount } from '../auth/account'
 import styles from './Subscriptions.module.css'
 
 export default function CreateSubscriptionPage() {
@@ -16,8 +17,9 @@ export default function CreateSubscriptionPage() {
       const current = sessionGuard()
       await mutation.mutateAsync(body)
       if (!current()) return
-      void cache.invalidateQueries({ queryKey: subscriptionsKey(account) })
+      refreshSubscriptionViews(cache, account)
       void navigate('/subscriptions', { replace: true, state: { notice: 'Subscription added.' } })
     }} />
   </section>
 }
+

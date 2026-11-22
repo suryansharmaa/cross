@@ -7,7 +7,8 @@ import type { SubscriptionBody } from '../../api/types'
 import Alert from '../../components/Alert'
 import Button from '../../components/Button'
 import SubscriptionForm from './SubscriptionForm'
-import { detailQuery, sessionGuard, subscriptionsKey, useAccount } from './queries'
+import { detailQuery, refreshSubscriptionViews } from './queries'
+import { sessionGuard, useAccount } from '../auth/account'
 import styles from './Subscriptions.module.css'
 
 export default function EditSubscriptionPage() {
@@ -35,13 +36,13 @@ function EditSubscription({ id, account }: { id: string; account: string }) {
       const saved = await mutation.mutateAsync(body)
       if (!current()) return
       cache.setQueryData(options.queryKey, saved)
-      void cache.invalidateQueries({ queryKey: subscriptionsKey(account) })
+      refreshSubscriptionViews(cache, account)
       void navigate('/subscriptions', { replace: true, state: { notice: 'Subscription updated.' } })
     } catch (error) {
       if (!current()) return
       if (error instanceof ApiError && (error.status === 404 || error.code === 'subscription_cancelled')) {
         setBlocked(error.status === 404 ? 'missing' : 'cancelled')
-        void cache.invalidateQueries({ queryKey: subscriptionsKey(account) })
+        refreshSubscriptionViews(cache, account)
         return
       }
       throw error
@@ -63,3 +64,4 @@ function EditSubscription({ id, account }: { id: string; account: string }) {
     </>}
   </section>
 }
+
