@@ -1,0 +1,4 @@
+.pill { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; }
+.filter { position: relative; }
+.filter.filter[aria-pressed="true"] { background: transparent; box-shadow: none; }
+.filterPill { z-index: 0; background: var(--surface); box-shadow: var(--shadow); }

@@ -1,19 +1,97 @@
 .actions, .bell { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.list { list-style: none; padding: 0; display: grid; gap: var(--space-3); }
-.card {
-  background: var(--surface);
-  border: var(--line) solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  overflow-wrap: anywhere;
-}
 .badge {
   color: var(--accent);
   border: var(--line) solid currentColor;
   border-radius: var(--radius);
   padding: var(--space-1) var(--space-2);
+  background: var(--accent-soft);
 }
-.unread { font-weight: var(--strong); color: var(--accent); }
-.read { color: var(--muted); }
-.card p { margin-block: var(--space-2); }
-.actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: var(--strong); }
+.page { display: grid; gap: var(--space-4); align-content: start; }
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.header p { margin-top: var(--space-1); color: var(--muted-on-tint); }
+.markAll, .markRead {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--split-row-height);
+  padding: 0 var(--space-4);
+  border: var(--line) solid var(--ledger-control-border);
+  border-radius: var(--pill);
+  background: var(--surface);
+  color: var(--text);
+  font: 500 var(--size-small)/1.4 var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.markAll:hover:not(:disabled), .markRead:hover:not(:disabled) { background: var(--background); }
+.markAll:disabled, .markRead:disabled { opacity: .45; cursor: default; }
+.markRead {
+  min-height: var(--notification-action-height);
+  padding-inline: var(--space-3);
+  border-radius: var(--space-2);
+  font-size: var(--size-footnote);
+}
+.list, .empty {
+  margin: 0;
+  border: var(--line) solid var(--workspace-panel-border);
+  border-radius: var(--radius-workspace);
+  background: var(--background);
+}
+.list { padding: var(--space-2); list-style: none; }
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+.empty p:first-of-type { font-weight: 500; color: var(--text); }
+.empty p + p, .metadata, .read { color: var(--muted-on-tint); font-size: var(--size-small); }
+.icon, .emptyIcon {
+  display: grid;
+  place-items: center;
+  width: var(--split-row-height);
+  height: var(--split-row-height);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.emptyIcon { width: var(--target); height: var(--target); border-radius: var(--radius-input); }
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--ledger-page-inset) var(--ledger-submit-inset);
+  overflow-wrap: anywhere;
+}
+.card + .card { border-top: var(--line) solid var(--dashboard-border); }
+.card:hover, .card:focus-within { background: var(--ledger-row-hover); }
+.card:hover .icon, .card:focus-within .icon { background: var(--accent); color: var(--on-accent); }
+.content { display: grid; gap: var(--space-1); min-width: 0; }
+.message { color: var(--notification-read-ink); }
+.unreadMessage { color: var(--text); font-weight: var(--strong); }
+.metadata { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.metadata time { font-variant-numeric: tabular-nums; }
+.warning, .urgent { padding: 0 var(--space-2); border-radius: var(--pill); font-size: var(--size-footnote); }
+.warning { background: var(--warning-soft); color: var(--warning-ink); }
+.urgent { background: var(--error-soft); color: var(--error-ink); }
+.unread { display: inline-flex; align-items: center; gap: var(--space-1); }
+.unread > span { width: var(--size-status-dot); height: var(--size-status-dot); border-radius: var(--pill); background: var(--muted-on-tint); }
+.card > .read, .card > .markRead { align-self: center; justify-self: end; }
+@media (max-width: 36rem) {
+  .card { grid-template-columns: auto minmax(0, 1fr); padding-inline: var(--space-2); }
+  .card > .read, .card > .markRead { grid-column: 2; justify-self: start; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .markAll, .markRead, .card, .icon { transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease); }
+}
+
+.list:empty { display: none; }

@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import App from './App'
@@ -27,26 +27,64 @@ function mount(path: string, handle: (url: URL, init?: RequestInit) => Response 
 
 it('retries the dashboard and offers an add link for an empty account', async () => {
   let calls = 0
-  const { user } = mount('/', () => ++calls === 1 ? new Response(null, { status: 500 }) : Response.json(empty))
+  const { user } = mount('/dashboard', () => ++calls === 1 ? new Response(null, { status: 500 }) : Response.json(empty))
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your dashboard')
   await user.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(await screen.findByRole('link', { name: 'Add subscription' })).toHaveAttribute('href', '/subscriptions/new')
-  expect(screen.getByText('No paying spend yet.')).toBeVisible()
+  expect(within(screen.getByRole('main')).getByRole('link', { name: 'Add subscription' })).toHaveAttribute('href', '/subscriptions/new')
+  expect(within(screen.getByRole('banner', { name: 'Application' })).queryByRole('link', { name: 'Add subscription' })).not.toBeInTheDocument()
+  expect(await screen.findByText('No paying spend yet.')).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Add a subscription' })).toHaveAttribute('href', '/subscriptions/new')
   expect(screen.getByText('Nothing renews in the next 30 days.')).toBeVisible()
+  expect(screen.queryByText(/due within 7 days/)).not.toBeInTheDocument()
 })
 
 it('renders dashboard conversion cost and renewal names as text', async () => {
-  mount('/', () => Response.json({ ...empty, activeCount: 2, monthlySpend: 100, yearlySpend: 1200,
+  mount('/dashboard', () => Response.json({ ...empty, activeCount: 2, monthlySpend: 100, yearlySpend: 1200,
     trialsPending: { count: 1, monthlyIfConverted: 123 },
     categoryBreakdown: [{ category: 'MUSIC', count: 1, monthlySpend: 100, yearlySpend: 1200 }],
     upcomingRenewals: [{ id: 'one', name: '<b>Trial</b>', category: 'OTHER', amount: 123,
-      billingCycle: 'MONTHLY', isTrial: true, nextBillingDate: '2026-02-02', daysUntil: 1 }],
+      billingCycle: 'MONTHLY', isTrial: true, nextBillingDate: '2026-02-02', daysUntil: 1 },
+    { id: 'two', name: 'Included', category: 'MUSIC', amount: 77, billingCycle: 'MONTHLY',
+      isTrial: false, nextBillingDate: '2026-02-08', daysUntil: 7 },
+    { id: 'three', name: 'Next week', category: 'MUSIC', amount: 99, billingCycle: 'MONTHLY',
+      isTrial: false, nextBillingDate: '2026-02-09', daysUntil: 8 }],
   }))
   expect(await screen.findByText(/123.00 per month if converted/)).toBeVisible()
   expect(screen.getByRole('link', { name: '<b>Trial</b>' })).toHaveAttribute('href', '/subscriptions/one/edit')
   expect(screen.getByText('Trial', { exact: true })).toBeVisible()
-  expect(screen.getByText(/Tomorrow/)).toBeVisible()
+  expect(screen.getByText("Due tomorrow")).toBeVisible()
   expect(screen.getByText('2 Feb 2026')).toHaveAttribute('datetime', '2026-02-02')
+  expect(screen.getByText('2 renewals due within 7 days · \u20B9200.00')).toBeVisible()
+  const category = within(screen.getByRole('region', { name: 'Category spend' }))
+  expect(category.getByText('100% ·', { exact: false })).toBeVisible()
+  expect(category.getByText('Top category')).toBeVisible()
+})
+
+it('cross-highlights category rows and breakdown segments with motion disabled', async () => {
+  mount('/dashboard', () => Response.json({ ...empty, monthlySpend: 100, yearlySpend: 1200,
+    categoryBreakdown: [
+      { category: 'MUSIC', count: 1, monthlySpend: 25, yearlySpend: 300 },
+      { category: 'CLOUD_AND_AI', count: 1, monthlySpend: 75, yearlySpend: 900 },
+    ],
+  }))
+  const card = await screen.findByRole('region', { name: 'Category spend' })
+  const [musicRow, cloudRow] = within(card).getAllByRole('listitem')
+  const musicSegment = card.querySelector('div[data-category="MUSIC"]')
+  const cloudFill = card.querySelector('div[data-category="CLOUD_AND_AI"] > span')
+  if (!musicSegment || !cloudFill) throw new Error('Missing category segments')
+
+  fireEvent.pointerEnter(musicSegment)
+  expect(musicRow).toHaveAttribute('data-highlighted', 'true')
+  fireEvent.pointerLeave(musicSegment.parentElement ?? card)
+  expect(musicRow).not.toHaveAttribute('data-highlighted')
+
+  fireEvent.pointerEnter(cloudRow)
+  expect(cloudRow).toHaveAttribute('data-highlighted', 'true')
+  await waitFor(() => expect(musicSegment.firstElementChild).toHaveStyle({ opacity: '.32' }))
+  expect(cloudFill).toHaveStyle({ opacity: '1' })
+  fireEvent.pointerLeave(cloudRow)
+  await waitFor(() => expect(musicSegment.firstElementChild).toHaveStyle({ opacity: '1' }))
+  expect(cloudRow).not.toHaveAttribute('data-highlighted')
 })
 
 it('marks single and all notifications read and refreshes the accessible bell count', async () => {
@@ -67,6 +105,7 @@ it('marks single and all notifications read and refreshes the accessible bell co
     return Response.json({ items, page: 0, size: 20, totalPages: items.length, totalElements: items.length })
   }, () => count)
   expect(await screen.findByText(row.message)).toBeVisible()
+  expect(screen.getByText('1 day before')).toBeVisible()
   expect(await screen.findByRole('link', { name: 'Notifications, 2 unread' })).toHaveTextContent('2')
   await user.click(screen.getByRole('button', { name: 'Mark as read' }))
   expect(await screen.findByText('Read', { exact: true })).toBeVisible()
@@ -74,7 +113,13 @@ it('marks single and all notifications read and refreshes the accessible bell co
   await user.click(screen.getByRole('button', { name: 'Unread' }))
   expect(await screen.findByText('No unread notifications.')).toBeVisible()
   await user.click(screen.getByRole('button', { name: 'Mark all as read' }))
-  expect(await screen.findByRole('link', { name: 'Notifications, 0 unread' })).toHaveTextContent(/^$/)
+  expect(await screen.findByRole('link', { name: 'Notifications, 0 unread' })).toHaveTextContent(/^Notifications$/)
+})
+
+it('shows the empty notification feed and disables mark all as read', async () => {
+  mount('/notifications', () => Response.json({ items: [], page: 0, size: 20, totalPages: 0, totalElements: 0 }))
+  expect(await screen.findByText('No notifications yet.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Mark all as read' })).toBeDisabled()
 })
 
 it('requires email confirmation and clears protected caches after deleting the account', async () => {
@@ -114,7 +159,7 @@ it('requires email confirmation and clears protected caches after deleting the a
   }
 })
 
-it.each(['/', '/notifications', '/account'])('uses the common protected 401 redirect from %s', async path => {
+it.each(['/dashboard', '/notifications', '/account'])('uses the common protected 401 redirect from %s', async path => {
   const { user } = mount(path, () => new Response(null, { status: 401 }))
   if (path === '/account') {
     await user.click(await screen.findByRole('button', { name: 'Delete account' }))

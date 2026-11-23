@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { updateSubscription } from '../../api/subscriptions'
 import type { SubscriptionBody } from '../../api/types'
 import Alert from '../../components/Alert'
 import Button from '../../components/Button'
 import SubscriptionForm from './SubscriptionForm'
+import SubscriptionFormHeader from './SubscriptionFormHeader'
 import { detailQuery, refreshSubscriptionViews } from './queries'
 import { sessionGuard, useAccount } from '../auth/account'
 import styles from './Subscriptions.module.css'
@@ -28,7 +29,6 @@ function EditSubscription({ id, account }: { id: string; account: string }) {
   const data = query.data
   const missing = blocked === 'missing' || (query.error instanceof ApiError && query.error.status === 404)
   const cancelled = blocked === 'cancelled' || data?.status === 'CANCELLED'
-  const back = <Link to="/subscriptions">Back to subscriptions</Link>
 
   async function save(body: SubscriptionBody) {
     const current = sessionGuard()
@@ -49,9 +49,11 @@ function EditSubscription({ id, account }: { id: string; account: string }) {
     }
   }
   return <section className={styles.page}>
-    <h1>{missing ? 'Subscription not found' : cancelled ? 'Cancelled subscription' : 'Edit subscription'}</h1>
+    <SubscriptionFormHeader
+      title={missing ? 'Subscription not found' : cancelled ? 'Cancelled subscription' : 'Edit subscription'}
+      subtitle={missing || cancelled ? undefined : 'Update your plan details and billing dates.'} />
     {missing || cancelled ? <>
-      <Alert>{missing ? 'This subscription is unavailable.' : 'Cancelled subscriptions are read-only.'}</Alert>{back}
+      <Alert>{missing ? 'This subscription is unavailable.' : 'Cancelled subscriptions are read-only.'}</Alert>
     </> : query.isPending ? <Alert>Loading subscription...</Alert> : data ? <SubscriptionForm key={revision}
       initial={{ ...data, amount: String(data.amount), trialEndDate: data.trialEndDate ?? '', notes: data.notes ?? '' }}
       save={save} reload={async () => {
@@ -60,7 +62,7 @@ function EditSubscription({ id, account }: { id: string; account: string }) {
         setRevision(current => current + 1)
       }} /> : <>
       <Alert error>Could not load the subscription.</Alert>
-      <Button onClick={() => void query.refetch()} disabled={query.isFetching}>Retry</Button>{back}
+      <Button onClick={() => void query.refetch()} disabled={query.isFetching}>Retry</Button>
     </>}
   </section>
 }

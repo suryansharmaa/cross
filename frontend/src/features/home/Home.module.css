@@ -1,14 +1,104 @@
-﻿.header {
-  display: flex;
+.shell { min-height: 100dvh; background: var(--surface); }
+.sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  padding: var(--space-4) clamp(var(--space-4), 5vw, var(--space-7));
-  border-bottom: var(--line) solid var(--border);
-  background: var(--surface);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--background);
+  border-bottom: var(--line) solid var(--metric-divider);
 }
-.header strong { margin-inline-end: auto; }
-.header a[aria-current="page"] { font-weight: var(--strong); }
-.header span { overflow-wrap: anywhere; min-width: 0; }
-.main { padding: var(--space-6) clamp(var(--space-4), 5vw, var(--space-7)); }
-.nav { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.sidebar .brand {
+  color: var(--text);
+  font-size: var(--size-wordmark);
+  padding-inline-start: var(--split-inset);
+}
+.nav, .utilities { display: flex; flex-wrap: wrap; gap: var(--split-nav-gap); min-width: 0; }
+.nav { grid-column: 1 / -1; grid-row: 2; }
+.utilities { grid-column: 2; grid-row: 1; justify-content: end; }
+.nav a, .utilities a, .logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--split-row-height);
+  padding-inline: var(--split-inset);
+  border-radius: var(--space-2);
+  color: var(--muted);
+  font-size: var(--size-small);
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+}
+.nav a svg, .utilities svg { width: var(--space-4); height: var(--space-4); flex-shrink: 0; }
+.nav a:hover:not([aria-current="page"]), .utilities a:hover:not([aria-current="page"]) { color: var(--text); background: var(--split-hover); }
+.sidebar a[aria-current="page"] { color: var(--text); font-weight: var(--strong); }
+.nav a, .utilities a { position: relative; isolation: isolate; }
+.sidebar .activePill { background: var(--split-active); }
+.nav a[href="/notifications"] span:not(.activePill) {
+  margin-inline-start: auto;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--pill);
+  background: var(--split-active);
+  color: var(--text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.logout {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+.logout:hover { color: var(--error-ink); background: var(--split-logout-hover); }
+.main {
+  width: min(100%, calc(var(--content-width) + var(--gutter) * 2));
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--section-gap) var(--gutter);
+}
+@media (min-width: 900px) {
+  .shell { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    padding: 0;
+    border-bottom: 0;
+    border-inline-end: var(--line) solid var(--metric-divider);
+  }
+  .sidebar .brand { padding: var(--split-brand-top) calc(var(--split-inset) * 2) var(--space-4); }
+  .nav, .utilities { flex-direction: column; flex-wrap: nowrap; flex-shrink: 0; }
+  .nav { padding: var(--space-1) var(--split-inset); }
+  .utilities { margin-top: auto; padding: var(--split-inset); border-top: var(--line) solid var(--dashboard-border); }
+  .main { width: min(100%, calc(var(--content-width) + var(--split-inline) * 2)); padding: var(--space-6) var(--split-inline); }
+}
+@media (max-width: 30rem) {
+  .sidebar .brand { padding-inline-start: var(--space-2); }
+  .nav a, .utilities a, .logout { padding-inline: var(--space-2); }
+  .nav a:not([href="/notifications"]) svg, .utilities svg { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar a, .logout { transition: background-color var(--split-duration) var(--ease), color var(--split-duration) var(--ease); }
+  .sidebar[data-icon-motion] .brand svg line {
+    transform-origin: center;
+    transition: transform var(--split-duration) var(--ease);
+  }
+  .sidebar[data-icon-motion] .brand:hover svg line { transform: rotate(12deg) scale(1.08); }
+  .sidebar[data-icon-motion] .nav a[href="/notifications"]:hover svg {
+    transform-origin: 50% 20%;
+    animation: bell-wiggle .38s var(--ease);
+  }
+}
+@keyframes bell-wiggle {
+  0%, 100% { transform: rotate(0); }
+  28% { transform: rotate(9deg); }
+  60% { transform: rotate(-7deg); }
+  80% { transform: rotate(3deg); }
+}

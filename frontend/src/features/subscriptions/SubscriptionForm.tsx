@@ -1,3 +1,4 @@
+import { Collapse, MotionPresence, TactileButton } from '../../components/Motion'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router'
@@ -91,25 +92,48 @@ export default function SubscriptionForm({ initial = emptyDraft, save, reload }:
   }
   return <form ref={form} onSubmit={submit} noValidate className={styles.form}>
     {unmatched.length > 0 && <Alert error>{unmatched.map(({ message }, index) => <p key={index}>{message}</p>)}</Alert>}
-    {field('name', 'Name', 'text')}
-    {select('category', 'Category', categories)}
-    {field('amount', 'Amount (INR)', 'text')}
-    {select('billingCycle', 'Billing cycle', cycles)}
-    {field('startDate', 'Start date', 'date')}
-    <div>
-      <label><input type="checkbox" name="isTrial" checked={draft.isTrial}
-        aria-invalid={messages('isTrial').length > 0} aria-describedby="isTrial-errors"
-        onChange={event => change('isTrial', event.target.checked)} /> Trial</label>
-      <FieldErrors name="isTrial" errors={messages('isTrial')} />
-    </div>
-    {draft.isTrial && field('trialEndDate', 'Trial end date', 'date')}
-    <TextAreaField name="notes" label="Notes (optional)" rows={4} value={draft.notes} errors={messages('notes')}
-      onChange={event => change('notes', event.target.value)} />
-    <div className={styles.actions}>
-      <Button type="submit" disabled={pending || conflict}>Save subscription</Button>
-      {conflict && reload && <Button disabled={pending} onClick={() => void run(reload)}>Reload subscription</Button>}
-      <Link to="/subscriptions">Back to subscriptions</Link>
-    </div>
     {pending && <Alert>{conflict ? 'Reloading subscription...' : 'Saving subscription...'}</Alert>}
+    <div className={styles.formPanels}>
+      <div className={styles.formPanel + ' ' + styles.detailsPanel}>
+        <fieldset>
+          <legend>Subscription details</legend>
+          {field('name', 'Name', 'text')}
+          {select('category', 'Category', categories)}
+          <div className={styles.notesField}>
+            <TextAreaField name="notes" label="Notes (optional)" rows={4} value={draft.notes} errors={messages('notes')}
+              onChange={event => change('notes', event.target.value)} />
+          </div>
+        </fieldset>
+      </div>
+      <div className={styles.formPanel}>
+        <fieldset>
+          <legend>Billing</legend>
+          <div className={styles.billingFields}>
+            {field('amount', 'Amount (INR)', 'text')}
+            {select('billingCycle', 'Billing cycle', cycles)}
+          </div>
+          {field('startDate', 'Start date', 'date')}
+          <div className={styles.trialControls}>
+            <div>
+              <label><input type="checkbox" name="isTrial" checked={draft.isTrial}
+                aria-invalid={messages('isTrial').length > 0} aria-describedby="isTrial-errors"
+                onChange={event => change('isTrial', event.target.checked)} /> Trial</label>
+              <FieldErrors name="isTrial" errors={messages('isTrial')} />
+            </div>
+            <MotionPresence>
+              {draft.isTrial && <Collapse key="trial-end-date" duration={.24}>
+                {field('trialEndDate', 'Trial end date', 'date')}
+              </Collapse>}
+            </MotionPresence>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+    <div className={styles.formFooter}>
+      <Link className={styles.rowEdit} to="/subscriptions">Cancel</Link>
+      {conflict && reload && <Button className={styles.rowEdit} disabled={pending}
+        onClick={() => void run(reload)}>Reload subscription</Button>}
+      <TactileButton className={styles.save} type="submit" disabled={pending || conflict}>Save subscription</TactileButton>
+    </div>
   </form>
 }

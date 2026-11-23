@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { ApiError } from '../../api/client'
 import type { Credentials, FieldError } from '../../api/types'
 import Alert from '../../components/Alert'
-import Button from '../../components/Button'
+import { TactileButton } from '../../components/Motion'
 import TextField from '../../components/TextField'
 import AuthLayout from './AuthLayout'
 import { formErrors, normalizeEmail, validateCredentials } from './validation'
@@ -54,7 +54,8 @@ export default function AuthForm({ registering, notice, submit }: {
 
   function field(name: keyof typeof values, label: string, autoComplete: string) {
     return <TextField name={name} label={label} type={name === 'email' ? 'email' : 'password'}
-      autoComplete={autoComplete} value={values[name]}
+      autoComplete={autoComplete} placeholder={name === 'email' ? 'you@example.com' : '\u2022'.repeat(8)}
+      value={values[name]}
       onChange={event => {
         const value = event.target.value
         setValues(previous => ({ ...previous, [name]: value }))
@@ -68,16 +69,16 @@ export default function AuthForm({ registering, notice, submit }: {
   const progress = registering ? 'Creating account...' : 'Logging in...'
   const unmatched = errors.filter(error => !fields.includes(error.field))
 
-  return <AuthLayout title={action}>
+  return <AuthLayout title={action} credentials>
     {notice && <Alert>{notice}</Alert>}
     <form ref={form} className={styles.form} noValidate onSubmit={handleSubmit}>
       {unmatched.length > 0 && <Alert error>{unmatched.map(({ message }, index) => <div key={index}>{message}</div>)}</Alert>}
       {field('email', 'Email', 'email')}
       {field('password', 'Password', registering ? 'new-password' : 'current-password')}
       {registering && field('confirmation', 'Confirm password', 'new-password')}
-      <Button type="submit" disabled={pending}>{pending ? progress : action}</Button>
+      <TactileButton className={styles.submit} type="submit" disabled={pending}>{pending ? progress : action}</TactileButton>
       <span className={styles.visuallyHidden} role="status">{pending ? progress : ''}</span>
     </form>
-    <p>{registering ? <Link to="/login">Log in</Link> : <Link to="/register">Create an account</Link>}</p>
+    <footer className={styles.footer}>{registering ? <>Already have an account? <Link to="/login">Log in</Link></> : <>New to Cross? <Link to="/register">Create an account</Link></>}</footer>
   </AuthLayout>
 }

@@ -1,0 +1,2 @@
+.animated { will-change: transform, opacity, filter; }
+.animated:has(:focus-visible) { filter: none !important; opacity: 1 !important; transform: none !important; }
