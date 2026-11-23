@@ -5,5 +5,5 @@ import ProfileStatus from './ProfileStatus'
 export default function GuestOnly() {
   const { user, restoring, failed } = useAuth()
   if (restoring || failed) return <ProfileStatus />
-  return user ? <Navigate to="/" replace /> : <Outlet />
+  return user ? <Navigate to="/dashboard" replace /> : <Outlet />
 }

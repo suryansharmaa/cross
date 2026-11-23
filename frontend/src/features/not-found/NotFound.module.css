@@ -1,0 +1,72 @@
+.layout {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-7) var(--space-4);
+  background: var(--background);
+}
+.wordmark {
+  position: absolute;
+  inset: var(--space-5) auto auto var(--space-6);
+}
+.composition { width: min(100%, var(--not-found-width)); min-width: 0; text-align: center; }
+.code {
+  margin-bottom: var(--space-3);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--not-found-numeral);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -.05em;
+}
+@supports (background-clip: text) {
+  .code {
+    background: linear-gradient(var(--text), var(--closing-muted));
+    background-clip: text;
+    color: transparent;
+  }
+}
+@media (forced-colors: active) {
+  .code { background: none; color: CanvasText; }
+}
+.composition h1 { font-size: var(--size-title); font-weight: var(--strong); }
+.description { margin-top: var(--space-2); color: var(--muted); font-size: var(--ledger-legend-size); }
+.path {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-1) var(--space-3);
+  overflow: hidden;
+  border: var(--line) solid var(--border);
+  border-radius: var(--pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--size-footnote);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.actions .returnLink, .actions .back {
+  min-height: var(--ledger-field-height);
+  padding: 0 var(--space-20px);
+  border-radius: var(--pill);
+  font-size: var(--size-small);
+}
+.actions .returnLink { padding-inline: var(--workspace-metric-inset); }
+.actions .back { border-color: var(--ledger-control-border); }
+.footer {
+  margin-top: var(--split-row-height);
+  padding-top: var(--space-20px);
+  border-top: var(--line) solid var(--dashboard-border);
+}
+.footer nav { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.footer a { color: var(--muted); font-size: var(--size-footnote); text-decoration: none; }
+.footer a:hover { color: var(--text); text-decoration: underline; }

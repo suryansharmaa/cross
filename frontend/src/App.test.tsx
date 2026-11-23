@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
@@ -57,25 +57,53 @@ function submit(name: string) {
   fireEvent.click(screen.getByRole('button', { name }))
 }
 
-it.each(['/', '/notifications', '/account'])('redirects anonymous access at %s and renders the public 404', async path => {
-  const home = mount(path)
+it.each(['/dashboard', '/notifications', '/account'])('redirects anonymous access at %s', async path => {
+  mount(path)
   expect(await screen.findByRole('heading', { name: 'Log in' })).toBeVisible()
   expect(fetchMock).not.toHaveBeenCalled()
-  home.unmount()
-  mount('/unknown')
+})
+
+it('shows the public 404 and links home at an unknown route', async () => {
+  mount('/does-not-exist')
+  expect(screen.getByText('404')).toBeVisible()
   expect(screen.getByRole('heading', { name: 'Page not found' })).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
+  expect(screen.getByRole('link', { name: 'Cross' })).toHaveAttribute('href', '/')
+  const home = screen.getByRole('link', { name: 'Back to home' })
+  expect(home).toHaveAttribute('href', '/')
+  await userEvent.click(home)
+  expect(window.location.pathname).toBe('/')
+})
+
+it('shows the missing path and returns to the previous route', async () => {
+  window.history.replaceState(null, '', '/login')
+  window.history.pushState(null, '', '/missing/plan?source=test')
+  mount('/missing/plan?source=test')
+  expect(screen.getByText('/missing/plan')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Go back' }))
+  expect(await screen.findByRole('heading', { name: 'Log in' })).toBeVisible()
+})
+
+it('links an authenticated visitor from the 404 to the dashboard', async () => {
+  storeSession(session)
+  fetchMock.mockResolvedValueOnce(Response.json(account))
+  mount('/does-not-exist')
+  expect(screen.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+  const dashboard = await screen.findByRole('link', { name: 'Back to dashboard' })
+  expect(dashboard).toHaveAttribute('href', '/dashboard')
+  expect(screen.getByRole('link', { name: 'Cross' })).toHaveAttribute('href', '/dashboard')
+  await userEvent.click(dashboard)
+  expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeVisible()
 })
 
 it('redirects expired Home access and announces expiry', async () => {
   sessionStorage.setItem('cross.session', JSON.stringify({ ...session, expiresAt: '2000-01-01T00:00:00Z' }))
-  expect(mount('/').container).toBeDefined()
+  expect(mount('/dashboard').container).toBeDefined()
   expect(await screen.findByText(expired)).toHaveAttribute('role', 'status')
   expect(fetchMock).not.toHaveBeenCalled()
   expect(sessionStorage.length).toBe(0)
 })
 
-it.each(['/login', '/register', '/'])('restores a session from storage at %s before displaying Home', async path => {
+it.each(['/login', '/register', '/dashboard'])('restores a session from storage at %s before displaying Home', async path => {
   storeSession(session)
   const resolve = deferResponse()
   mount(path)
@@ -84,13 +112,13 @@ it.each(['/login', '/register', '/'])('restores a session from storage at %s bef
   resolve(Response.json(account))
   expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
   expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeVisible()
-  expect(window.location.pathname).toBe('/')
+  expect(window.location.pathname).toBe('/dashboard')
 })
 
 it('clears an unauthorized restored session and its query', async () => {
   storeSession(session)
   fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }))
-  const { client } = mount('/')
+  const { client } = mount('/dashboard')
   expect(await screen.findByText(expired)).toHaveAttribute('role', 'status')
   expect(fetchMock).toHaveBeenCalledTimes(1)
   expect(sessionStorage.length).toBe(0)
@@ -100,7 +128,7 @@ it('clears an unauthorized restored session and its query', async () => {
 it('keeps the stored session and retries restoration only on request', async () => {
   storeSession(session)
   fetchMock.mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce(Response.json(account))
-  mount('/')
+  mount('/dashboard')
   expect(await screen.findByRole('alert')).toHaveTextContent(profileError)
   expect(readSession().session).toEqual(session)
   expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -113,7 +141,7 @@ it('ends an open session at the timer deadline', async () => {
   storeSession({ ...session, expiresAt })
   fetchMock.mockResolvedValueOnce(Response.json(account))
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-  mount('/')
+  mount('/dashboard')
   await act(async () => { await vi.advanceTimersByTimeAsync(100) })
   expect(screen.getByRole('link', { name: 'Account' })).toBeVisible()
   await act(async () => { await vi.advanceTimersByTimeAsync(59_900) })
@@ -128,6 +156,10 @@ it.each([['/register', 'Create an account'], ['/login', 'Log in']])(
     const email = screen.getByLabelText('Email')
     const password = screen.getByLabelText('Password', { exact: true })
     expect(screen.getByRole('heading', { name: title })).toBeVisible()
+    expect(email).toHaveAttribute('placeholder', 'you@example.com')
+    expect(password).toHaveAttribute('placeholder', '\u2022'.repeat(8))
+    await keyboard.tab()
+    expect(screen.getByRole('link', { name: 'Back to Cross' })).toHaveFocus()
     await keyboard.tab()
     expect(email).toHaveFocus()
     await keyboard.tab()
@@ -169,7 +201,7 @@ it.each([['/register', 'Create an account'], ['/login', 'Log in']])(
     submit(title)
     expect(await screen.findByRole('alert')).toHaveTextContent('Unmatched field')
     const email = screen.getByLabelText('Email')
-    expect(email).toHaveFocus()
+    await waitFor(() => expect(email).toHaveFocus())
     expect(email).toHaveAccessibleDescription('Server email Second email error')
     expect(screen.getByLabelText('Password', { exact: true })).toHaveAccessibleDescription('Server password')
     fireEvent.change(email, { target: { value: 'a@b' } })
@@ -247,10 +279,10 @@ it('stores the session before profile fetch, keeps login pending, and restores a
   expect(screen.queryByText(account.email)).not.toBeInTheDocument()
   resolve(Response.json(account))
   expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
-  expect(window.location.pathname).toBe('/')
+  expect(window.location.pathname).toBe('/dashboard')
   first.unmount()
   fetchMock.mockResolvedValueOnce(Response.json(account))
-  mount('/')
+  mount('/dashboard')
   expect(await screen.findByRole('link', { name: 'Account' })).toBeVisible()
   expect(fetchMock).toHaveBeenCalledTimes(3)
 })
@@ -271,7 +303,7 @@ it.each([401, 403, 0])('cleans up a provisional session after profile failure %s
 it('replaces Home on logout, clears the profile, and guards older Home history', async () => {
   storeSession(session)
   fetchMock.mockResolvedValueOnce(Response.json(account))
-  const { client } = mount('/')
+  const { client } = mount('/dashboard')
   window.history.pushState(null, '', '/')
   const length = window.history.length
   await screen.findByRole('link', { name: 'Account' })
@@ -293,3 +325,66 @@ it('replaces Home on logout, clears the profile, and guards older Home history',
 
 
 
+it('shows the public landing, feature sections, and guest destinations without fetching', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch')
+  try {
+    mount('/')
+    expect(screen.getByRole('heading', { name: 'Track free trials and subscriptions.' })).toBeVisible()
+    expect(screen.getByText(/alerts 3 days and 1 day/)).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Subscription spend, in INR.' })).toBeVisible()
+    expect(screen.getAllByRole('link', { name: 'Create an account' })[0]).toHaveAttribute('href', '/register')
+    const login = screen.getAllByRole('link', { name: 'Log in' })[0]
+    expect(login).toHaveAttribute('href', '/login')
+    for (const amount of [799, 399, 299]) {
+      expect(screen.getAllByText('\u20B9' + amount)[0]).toBeVisible()
+    }
+    expect(screen.getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '/register')
+    for (const section of ['Overview', 'Reminders', 'Spending', 'Contact']) {
+      const id = section.toLowerCase()
+      expect(screen.getAllByRole('link', { name: section })[0]).toHaveAttribute('href', '#' + id)
+      expect(document.getElementById(id)).toBeVisible()
+    }
+    expect(screen.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', 'https://www.linkedin.com/in/suryansharmaa')
+    expect(screen.getByRole('link', { name: 'suryansharmaa@gmail.com' })).toHaveAttribute('href', 'mailto:suryansharmaa@gmail.com')
+    const detail = screen.getByRole('complementary', { name: 'Plan details' })
+    expect(within(detail).getByText('Trial ends tomorrow')).toBeVisible()
+    const streaming = screen.getByRole('button', { name: /Entertainment/ })
+    await userEvent.click(streaming)
+    expect(streaming).toHaveAttribute('aria-pressed', 'true')
+    expect(within(detail).getByText('3-day reminder')).toBeVisible()
+    const backup = screen.getByRole('button', { name: /Education/ })
+    backup.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(backup).toHaveAttribute('aria-pressed', 'true')
+    expect(within(detail).getByText('Trial ends tomorrow')).toBeVisible()
+    const defaultStep = screen.getByRole('button', { name: 'Make the call' })
+    const firstStep = screen.getByRole('button', { name: 'Get a heads-up' })
+    expect(defaultStep).toHaveAttribute('aria-pressed', 'true')
+    firstStep.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(firstStep).toHaveAttribute('aria-pressed', 'true')
+    expect(defaultStep).toHaveAttribute('aria-pressed', 'false')
+    expect(fetchSpy).not.toHaveBeenCalled()
+    await userEvent.click(login)
+    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeVisible()
+  } finally {
+    fetchSpy.mockRestore()
+  }
+})
+
+it('keeps the landing visible during profile restore and offers a dashboard link after retry', async () => {
+  storeSession(session)
+  const resolve = deferResponse()
+  mount('/')
+  expect(screen.getAllByText('Loading your account…')[0]).toBeVisible()
+  expect(screen.getByRole('heading', { level: 1 })).toBeVisible()
+  resolve(problem(500, 'server_error'))
+  const retry = (await screen.findAllByRole('button', { name: 'Retry' }))[0]
+  fetchMock.mockResolvedValueOnce(Response.json(account))
+  await userEvent.click(retry)
+  const dashboard = (await screen.findAllByRole('link', { name: 'Open dashboard' }))[0]
+  expect(dashboard).toHaveAttribute('href', '/dashboard')
+  expect(window.location.pathname).toBe('/')
+  await userEvent.click(dashboard)
+  expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeVisible()
+})

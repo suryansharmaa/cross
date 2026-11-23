@@ -11,7 +11,7 @@ const notificationKey = ['notifications', 'account', 'list', 'all', 0, 20]
 const body = { name: '<b>Plan</b>', category: 'OTHER', amount: 120, billingCycle: 'MONTHLY',
   startDate: '2024-02-29', isTrial: true, trialEndDate: '2024-03-01', notes: '<em>Notes</em>' }
 const item = { ...body, id: 'one', status: 'ACTIVE', nextBillingDate: '2024-03-01' }
-const cancelled = { ...item, status: 'CANCELLED', nextBillingDate: null }
+const cancelled = { ...item, status: 'CANCELLED', nextBillingDate: null, cancelledAt: '2024-03-01T20:00:00Z' }
 const page = (items: unknown[], number = 0, total = items.length) =>
   Response.json({ items, page: number, size: 20, totalPages: Math.ceil(total / 20), totalElements: total })
 const problem = (status: number, code: string, fieldErrors?: { field: string; message: string }[]) =>
@@ -62,6 +62,7 @@ it('renders text and status badges and confirms cancel and delete before refresh
   await user.click(cancel)
   await user.click(screen.getByRole('button', { name: 'Confirm cancel' }))
   expect(await within(card).findByText('Cancelled')).toBeVisible()
+  expect(within(card).getByText('2 Mar 2024')).toHaveAttribute('datetime', cancelled.cancelledAt)
   expect(client.getQueryState(dashboardKey)?.isInvalidated).toBe(true)
   expect(client.getQueryState(notificationKey)?.isInvalidated).toBe(false)
   client.setQueryData(dashboardKey, {})
@@ -84,7 +85,9 @@ it('handles loading, retry, pagination and filtered empty results', async () => 
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load subscriptions.')
   await user.click(screen.getByRole('button', { name: 'Retry' }))
   expect(await screen.findByText('Page 1 of 2 (21 total)')).toBeVisible()
-  await user.click(screen.getByRole('button', { name: 'Next' }))
+  const next = screen.getByRole('button', { name: 'Next' })
+  expect(next).toHaveClass(screen.getByRole('button', { name: 'Previous' }).className, { exact: true })
+  await user.click(next)
   expect(await screen.findByText('Page 2 of 2 (21 total)')).toBeVisible()
   await user.click(screen.getByRole('button', { name: 'Cancelled' }))
   expect(await screen.findByText('No subscriptions match this filter.')).toBeVisible()

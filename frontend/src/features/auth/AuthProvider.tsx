@@ -85,7 +85,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       throw new ApiError(0, 'profile_failed', 'Could not load your account. Please try again.')
     }
     setSession(provisional)
-    void navigate('/', { replace: true })
+    void navigate('/dashboard', { replace: true })
   }
 
   if (loginRedirect?.from === locationKey) {

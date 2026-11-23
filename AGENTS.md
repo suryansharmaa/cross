@@ -109,14 +109,13 @@ Stack: Vite, React (function components and hooks), TypeScript in strict mode. U
 - Money is shown as INR with `Intl.NumberFormat("en-IN")`. Backend date-only strings (`YYYY-MM-DD`) are calendar dates. Never convert them through a UTC `Date` in a way that can shift the day.
 
 ### Styling and design direction
-- CSS Modules plus CSS variables defined in `src/styles/tokens.css`. No UI framework unless justified.
-- Look: minimal, calm, and modern. Generous whitespace, one restrained accent color, flat surfaces with 1px borders and very soft shadows. No gradients (including gradient text and buttons), no glassmorphism, no glowing effects, no decorative blobs, no emoji as icons.
-- Typography: the system font stack, a clear size scale, two weights. One consistent corner radius.
-- Motion: subtle and brief (150-200ms fades and color transitions), and respect `prefers-reduced-motion`.
-- Palette (define as CSS variables, and nothing else hard-codes colors): background #F7F5F0, surface #FFFFFF, text #1C1C1A, muted text #6B6A63, border #E5E2D9, accent #2F5D50, error #B3402F. Text and controls must meet WCAG AA contrast.
-- This is an app (forms, lists, dashboard), not a marketing page: no hero sections, photographs, shader effects, or scroll scenes.
-- If a design skill's guidance conflicts with this section or any rule above, this file wins.
-
+- Follow `.agents/skills/design-taste-frontend/SKILL.md` for visual design,
+  typography, color tokens, layout rhythm, elevation, and motion.
+- Keep all color/spacing/type values centralized in `src/styles/tokens.css`.
+- Always preserve WCAG AA contrast, visible keyboard focus rings, and
+  `prefers-reduced-motion`.
+- Security, TypeScript strictness, API contracts, and testing rules in this
+  file still apply.
 ### Frontend testing
 - Vitest, React Testing Library, and user-event. Test the API wrapper, auth redirects, form validation and server errors, and loading, empty, and error states.
 

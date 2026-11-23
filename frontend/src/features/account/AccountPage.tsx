@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { Calendar, Mail } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '../../api/client'
 import { deleteAccount } from '../../api/users'
 import Alert from '../../components/Alert'
+import { TactileButton } from '../../components/Motion'
 import Button from '../../components/Button'
 import { formatInstantDate } from '../../lib/subscriptionFormatting'
 import { sessionGuard } from '../auth/account'
@@ -37,16 +39,32 @@ export default function AccountPage() {
     }
   }
 
-  return <section>
-    <h1>Account</h1>
-    <dl className={styles.details}>
-      <dt>Email</dt><dd>{user.email}</dd>
-      <dt>Account created</dt><dd><time dateTime={user.createdAt}>{formatInstantDate(user.createdAt)}</time></dd>
-    </dl>
+  return <section aria-labelledby="account-heading">
+    <header className={styles.pageHeader}>
+      <h1 id="account-heading">Account</h1>
+      <p>Manage your profile details and account data.</p>
+    </header>
+    <section className={styles.profile} aria-labelledby="account-profile-heading">
+      <h2 id="account-profile-heading">Profile</h2>
+      <dl className={styles.details}>
+        <div>
+          <dt><span className={styles.icon}><Mail size={16} aria-hidden="true" /></span>Email</dt><dd>{user.email}</dd>
+        </div>
+        <div>
+          <dt><span className={styles.icon}><Calendar size={16} aria-hidden="true" /></span>Account created</dt>
+          <dd><time dateTime={user.createdAt}>{formatInstantDate(user.createdAt)}</time></dd>
+        </div>
+      </dl>
+    </section>
     <section className={styles.danger} aria-labelledby="delete-account-heading">
-      <h2 id="delete-account-heading">Delete account</h2>
-      <p>Deleting your account permanently removes your account, all subscriptions, and all notifications.</p>
-      <Button ref={trigger} hidden={confirming} onClick={() => setConfirming(true)}>Delete account</Button>
+      <div className={styles.dangerHeader}>
+        <div>
+          <h2 id="delete-account-heading">Delete account</h2>
+          <p>Deleting your account permanently removes your account, all subscriptions, and all notifications.</p>
+        </div>
+        <TactileButton className={styles.deleteTrigger} ref={trigger} hidden={confirming}
+          onClick={() => setConfirming(true)}>Delete account</TactileButton>
+      </div>
       {confirming && <form className={styles.form} onSubmit={event => { event.preventDefault(); void removeAccount() }}>
         <label htmlFor="delete-account-email">Type your email to confirm</label>
         <input id="delete-account-email" type="text" inputMode="email" required ref={input}
@@ -54,8 +72,8 @@ export default function AccountPage() {
         {error && <Alert error>{error}</Alert>}
         {mutation.isPending && <Alert>Deleting your account...</Alert>}
         <div className={styles.actions}>
-          <Button type="submit" disabled={!matches || mutation.isPending}>Permanently delete account</Button>
-          <Button disabled={mutation.isPending} onClick={() => {
+          <TactileButton className={styles.deleteSubmit} type="submit" disabled={!matches || mutation.isPending}>Permanently delete account</TactileButton>
+          <Button className={styles.cancel} disabled={mutation.isPending} onClick={() => {
             setConfirming(false)
             setEmail('')
             setError('')

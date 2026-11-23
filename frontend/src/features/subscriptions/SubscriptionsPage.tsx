@@ -1,9 +1,11 @@
+import { FilterButton, ListTransition, MotionPresence } from '../../components/Motion'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/client'
 import { cancelSubscription, deleteSubscription } from '../../api/subscriptions'
 import type { SubscriptionStatus } from '../../api/types'
+import AddSubscriptionLink from '../../components/AddSubscriptionLink'
 import Alert from '../../components/Alert'
 import Button from '../../components/Button'
 import SubscriptionCard from './SubscriptionCard'
@@ -19,6 +21,7 @@ export default function SubscriptionsPage() {
   const [status, setStatus] = useState<SubscriptionStatus>()
   const [page, setPage] = useState(0)
   const [selection, setSelection] = useState<{ id: string; action: Action }>()
+  const [deletedId, setDeletedId] = useState<string>()
   const [error, setError] = useState('')
   const { state } = useLocation()
   const [notice, setNotice] = useState(typeof state?.notice === 'string' ? state.notice : '')
@@ -69,7 +72,10 @@ export default function SubscriptionsPage() {
       const saved = await mutation.mutateAsync(selection)
       if (!current()) return
       if (saved) cache.setQueryData(queryKey, saved)
-      else cache.removeQueries({ queryKey })
+      else {
+        cache.removeQueries({ queryKey })
+        setDeletedId(id)
+      }
       trigger.current = null
       dismiss()
       setNotice(action === 'Cancel' ? 'Subscription cancelled.' : 'Subscription deleted.')
@@ -89,36 +95,45 @@ export default function SubscriptionsPage() {
 
   const failed = query.isError || (checkAll && all.isError)
   const loading = query.isPending || (checkAll && all.isPending) || page > last
-  return <section className={styles.page}>
+  return <section className={styles.ledgerPage}>
     <div className={styles.toolbar}>
-      <h1 tabIndex={-1} ref={heading}>Subscriptions</h1>
-      <Link to="/subscriptions/new">Add subscription</Link>
+      <div>
+        <h1 tabIndex={-1} ref={heading}>Subscriptions</h1>
+        <p>Manage your active plans, trials, and billing dates.</p>
+      </div>
+      <AddSubscriptionLink />
     </div>
-    <div className={styles.actions} role="group" aria-label="Subscription status">
-      {filters.map(filter => <Button key={filter.label} disabled={!!selection} aria-pressed={status === filter.status}
-        onClick={() => { setStatus(filter.status); setPage(0) }}>{filter.label}</Button>)}
+    <div className={styles.filters} role="group" aria-label="Subscription status">
+      {filters.map(filter => <FilterButton id="subs-filter-pill" className={styles.filter} key={filter.label} disabled={!!selection} active={status === filter.status}
+        onClick={() => { setStatus(filter.status); setPage(0) }}>{filter.label}</FilterButton>)}
     </div>
     {notice && <Alert>{notice}</Alert>}
     {error && <Alert error>{error}</Alert>}
     {mutation.isPending && <Alert>{selection?.action === 'Cancel' ? 'Cancelling subscription...' : 'Deleting subscription...'}</Alert>}
-    {failed ? <>
-      <Alert error>Could not load subscriptions.</Alert>
-      <Button onClick={() => void (query.isError ? query.refetch() : all.refetch())}>Retry</Button>
-    </> : loading ? <Alert>Loading subscriptions...</Alert> : data && <>
-      {data.items.length === 0 ? <Alert>{(checkAll ? all.data?.totalElements : data.totalElements) === 0
-        ? 'No subscriptions yet. Add a subscription to get started.' : 'No subscriptions match this filter.'}</Alert>
-        : <ul className={styles.list}>{data.items.map(item => <SubscriptionCard key={item.id} item={item}
+    <ListTransition listKey={(status ?? 'all') + ':' + page} ready={!failed && !loading && !!data} className={styles.list}>
+      <MotionPresence custom={deletedId}>
+      {!failed && !loading && data?.items.map(item => <SubscriptionCard key={item.id} item={item}
           action={selection?.id === item.id ? selection.action : undefined} locked={!!selection} pending={mutation.isPending}
           choose={(action, button) => {
             trigger.current = button
             setError('')
             setSelection({ id: item.id, action })
           }}
-          dismiss={dismiss} confirm={() => void confirm()} />)}</ul>}
-      <nav aria-label="Subscription pages" className={styles.actions}>
-        <Button disabled={page === 0 || !!selection} onClick={() => setPage(page - 1)}>Previous</Button>
+          dismiss={dismiss} confirm={() => void confirm()} />)}
+      </MotionPresence>
+    </ListTransition>
+    {failed ? <>
+      <Alert error>Could not load subscriptions.</Alert>
+      <Button onClick={() => void (query.isError ? query.refetch() : all.refetch())}>Retry</Button>
+    </> : loading ? <Alert>Loading subscriptions...</Alert> : data && <>
+      {data.items.length === 0 && <Alert>{(checkAll ? all.data?.totalElements : data.totalElements) === 0
+        ? 'No subscriptions yet. Add a subscription to get started.' : 'No subscriptions match this filter.'}</Alert>}
+    </>}
+    {!failed && !loading && data && <>
+      <nav aria-label="Subscription pages" className={styles.pagination}>
+        <Button className={styles.pageButton} disabled={page === 0 || !!selection} onClick={() => setPage(page - 1)}>Previous</Button>
         <span aria-live="polite">Page {page + 1} of {Math.max(1, data.totalPages)} ({data.totalElements} total)</span>
-        <Button disabled={page >= last || !!selection} onClick={() => setPage(page + 1)}>Next</Button>
+        <Button className={styles.pageButton} disabled={page >= last || !!selection} onClick={() => setPage(page + 1)}>Next</Button>
       </nav>
     </>}
   </section>
